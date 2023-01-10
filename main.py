@@ -9,8 +9,8 @@ from typing import List, Optional
 
 from type_tables import args_to_typehints, undo_query_edit_to_bools
 
-OUTPUT_DIRECTORY = r"E:\maya\stubs"
-DOCS_SOURCE_DIRECTORY = r"E:\maya\CommandsPython"
+STUBS_OUTPUT_DIRECTORY = os.getenv("STUBS_OUTPUT_DIRECTORY", r"E:\maya\stubs")
+DOCS_SOURCE_DIRECTORY = os.getenv("DOCS_SOURCE_DIRECTORY", r"E:\maya\CommandsPython")
 
 
 def scrape_maya_commands(offline_docs_path: str) -> List[MayaCommand]:
@@ -132,7 +132,6 @@ def scrape_maya_commands(offline_docs_path: str) -> List[MayaCommand]:
 
             print("done")
 
-
     return maya_commands_list
 
 
@@ -229,7 +228,7 @@ class MayaCommand:
             fn_string += f"        {argument.long_name}: {description}\n"
 
         fn_string += "    \"\"\"\n"
-        fn_string += "    pass\n"
+        fn_string += "    pass\n\n"
 
         return fn_string
 
@@ -245,5 +244,5 @@ class Argument:
 
 if __name__ == "__main__":
     maya_commands = scrape_maya_commands(offline_docs_path=DOCS_SOURCE_DIRECTORY)
-    write_command_stubs(target_file_path=OUTPUT_DIRECTORY,
+    write_command_stubs(target_file_path=STUBS_OUTPUT_DIRECTORY,
                         command_objects=maya_commands, force=True)
