@@ -213,23 +213,23 @@ class MayaCommand:
         fn_string += "):"
         fn_string += "\n"
 
-        fn_string += "\t\"\"\"\n"
+        fn_string += "    \"\"\"\n"
 
         desc = [i.strip() for i in self.description.splitlines() if i.strip()]
 
-        fn_string += "\t{d}\n".format(d=" ".join(desc))
+        fn_string += "    {d}\n".format(d=" ".join(desc))
 
         fn_string += "\n"
 
-        fn_string += "\tArgs:\n"
+        fn_string += "    Args:\n"
 
         for argument in self.arguments:
             description = argument.description.splitlines()
             description = " ".join(description)
-            fn_string += f"\t\t{argument.long_name}: {description}\n"
+            fn_string += f"        {argument.long_name}: {description}\n"
 
-        fn_string += "\t\"\"\"\n"
-        fn_string += "\tpass\n"
+        fn_string += "    \"\"\"\n"
+        fn_string += "    pass\n"
 
         return fn_string
 
