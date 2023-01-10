@@ -96,7 +96,7 @@ def args_to_typehints(argument) -> Tuple[str, str]:
                     "[string, boolean]": ["Tuple[str, bool]",
                                           "[str, bool]"],
                     "[string, string[]]": ["Tuple[str, List[str]]",
-                                           "[str, [str]"],
+                                           "[str, [str]]"],
                     "[boolean, boolean]": ["Tuple[bool, bool]",
                                            "[bool, bool]"],
                     "[boolean, boolean, boolean]": ["Tuple[bool, bool, bool]",
