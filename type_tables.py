@@ -67,7 +67,7 @@ def args_to_typehints(argument) -> Tuple[str, str]:
                                      "[int, int]"],
                     "timerange": ["Tuple[float, float]",
                                   "[float, float]"],
-                    "string[]": ["Listt[str]",
+                    "string[]": ["List[str]",
                                  "[str]"],
                     "floatrange": ["Tuple[float, float]",
                                    "[float, float]"],
