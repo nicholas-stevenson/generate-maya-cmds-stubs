@@ -1,16 +1,28 @@
 from __future__ import annotations
 
-import bs4
 import os
-import scandir
 import shutil
 import traceback
 from typing import List, Optional
 
+import bs4
+import scandir
+
 from type_tables import args_to_typehints, undo_query_edit_to_bools
 
-STUBS_OUTPUT_DIRECTORY = os.getenv("STUBS_OUTPUT_DIRECTORY", r"E:\maya\stubs")
-DOCS_SOURCE_DIRECTORY = os.getenv("DOCS_SOURCE_DIRECTORY", r"E:\maya\CommandsPython")
+# Environment variables can be used to alter the generated output,
+# as well as where the
+source_dir = os.getenv("CMDS_STUBS_SOURCE_DIR")
+target_dir = os.getenv("CMDS_STUBS_TARGET_DIR")
+long_args = (os.getenv("CMDS_STUBS_LONG_ARGS").lower() in ["true", "1"])
+short_args = (os.getenv("CMDS_STUBS_SHORT_ARGS").lower() in ["true", "1"])
+
+# If env variables are not used, use the current active directory.
+if not source_dir:
+    source_dir = os.path.join(os.getcwd(), "source")
+
+if not target_dir:
+    target_dir = os.path.join(os.getcwd(), "target")
 
 
 def scrape_maya_commands(offline_docs_path: str) -> List[MayaCommand]:
@@ -81,8 +93,14 @@ def scrape_maya_commands(offline_docs_path: str) -> List[MayaCommand]:
 
             maya_command.function = soup.body.find(id="synopsis").find("code").text.split("(")[0]
 
+            # Find the text section pertaining to the allowed command flags,
+            # found just after the main function and arguments block.
+            # eg: ..... is undoable, queryable, and editable.
             undo_query_edit_section = None
             for idx, section in enumerate(soup.body.contents):
+                # The three states (undoable, queryable, editable) are always explicitly mentioned
+                # look for all three to ensure that we don't accidentally enter a different sort of text block
+                # that happens to use just one fo these three words
                 if all(x in section.text for x in ("undoable", "queryable", "editable")):
                     undo_query_edit_section = idx
                     maya_command.undoable, maya_command.queryable, maya_command.editable = undo_query_edit_to_bools(
@@ -118,8 +136,10 @@ def scrape_maya_commands(offline_docs_path: str) -> List[MayaCommand]:
                     argument = Argument()
 
                     names_section, type_section = header.find_all("code")
-
                     long_name, short_name = names_section.find_all("b")
+                    properties_section = header.find_all("img")
+                    argument.properties = Properties([p.get("title") for p in properties_section])
+
                     argument.long_name = long_name.text
                     argument.short_name = short_name.text
 
@@ -199,7 +219,16 @@ class MayaCommand:
                 arg_typehint, arg_default = args_to_typehints(argument.type)
             except ValueError:
                 raise ValueError(f"Failed at {self.function} with argument format: {argument.type}")
-            fn_string += f" {argument.long_name}: {arg_typehint} = {arg_default},"
+
+            if argument.properties.create or argument.properties.query:
+                if arg_typehint != "bool":
+                    arg_typehint = f"Union[{arg_typehint}, bool]"
+
+            if long_args:
+                fn_string += f" {argument.long_name}: {arg_typehint} = {arg_default},"
+
+            if short_args:
+                fn_string += f" {argument.short_name}: {arg_typehint} = {arg_default},"
 
         if self.editable:
             fn_string += " edit: bool = bool,"
@@ -223,9 +252,17 @@ class MayaCommand:
         fn_string += "    Args:\n"
 
         for argument in self.arguments:
+            argument_name = ""
+            if long_args and short_args:
+                argument_name = " | ".join([argument.long_name, argument.short_name])
+            elif long_args:
+                argument_name = argument.long_name
+            elif short_args:
+                argument_name = argument.short_name
+
             description = argument.description.splitlines()
             description = " ".join(description)
-            fn_string += f"        {argument.long_name}: {description}\n"
+            fn_string += f"        {argument_name} ({str(argument.properties)}): {description}\n"
 
         fn_string += "    \"\"\"\n"
         fn_string += "    pass\n\n"
@@ -238,11 +275,42 @@ class Argument:
         self.long_name: str = ""
         self.short_name: str = ""
         self.type: str = ""
-        self.properties: list = []
+        self.properties: Optional[Properties] = None
         self.description: str = ""
 
 
+class Properties:
+    def __init__(self, init_values: List[str]):
+        self.edit = False
+        self.create = False
+        self.query = False
+        self.multiuse = False
+
+        for value in init_values:
+            if value not in self._arguments:
+                raise ValueError("This command contains an unrecognized property\n"
+                                 f"Allowed properties    : {', '.join(self._arguments)}\n"
+                                 f"unrecognized property : {value}")
+
+        for field in self._arguments:
+            if str(field) in init_values:
+                setattr(self, field, True)
+
+    @property
+    def _arguments(self) -> List[str]:
+        """Returns a string list of the boolean flags set during initialization,
+        eg: create, edit, query, multiuse, etc..."""
+        return [i for i in dir(self) if not i.startswith("_")]
+
+    def __repr__(self):
+        return ", ".join([i.title() for i in self._arguments if getattr(self, i) is True])
+
+
 if __name__ == "__main__":
-    maya_commands = scrape_maya_commands(offline_docs_path=DOCS_SOURCE_DIRECTORY)
-    write_command_stubs(target_file_path=STUBS_OUTPUT_DIRECTORY,
+    for asset_path in [target_dir, source_dir]:
+        if not os.path.exists(asset_path):
+            os.mkdir(asset_path)
+
+    maya_commands = scrape_maya_commands(offline_docs_path=source_dir)
+    write_command_stubs(target_file_path=target_dir,
                         command_objects=maya_commands, force=True)
