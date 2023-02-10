@@ -10,12 +10,27 @@ import scandir
 
 from type_tables import args_to_typehints, undo_query_edit_to_bools
 
-# Environment variables can be used to alter the generated output,
-# as well as where the
-source_dir = os.getenv("CMDS_STUBS_SOURCE_DIR")
-target_dir = os.getenv("CMDS_STUBS_TARGET_DIR")
-long_args = (os.getenv("CMDS_STUBS_LONG_ARGS").lower() in ["true", "1"])
-short_args = (os.getenv("CMDS_STUBS_SHORT_ARGS").lower() in ["true", "1"])
+# Environment variables for modifying the various behaviors of this utility.
+
+# Source and Target variables control where the utility should look for the
+# offline html docs (source), and where to write the generated stubs (target)
+source_dir = os.getenv("CMDS_STUBS_SOURCE_DIR", "")
+target_dir = os.getenv("CMDS_STUBS_TARGET_DIR", "")
+
+# Some users and studios prefer sticking to one type of arguments.
+# The variables below allow the generated stubs to conform to either,
+# or even both short and long at the same time.
+long_args = (os.getenv("CMDS_STUBS_LONG_ARGS", "").lower() in ["true", "1"])
+short_args = (os.getenv("CMDS_STUBS_SHORT_ARGS", "").lower() in ["true", "1"])
+
+# When generating the stubs, the results will be written to a folder titled
+# cmds, after the main maya python cmds module.  The utility will check if
+# this directory exists, and if it is empty, and halt if the directory already has contents.
+# This flag will inform the tool to forcibly clear the output directory automatically.
+force_overwrite = (os.getenv("CMDS_STUBS_FORCE_OVERWRITE", "").lower() in ["true", "1"])
+
+if not any([short_args, long_args]):
+    raise RuntimeError("Must specify at least one type of argument style, aborting.")
 
 # If env variables are not used, use the current active directory.
 if not source_dir:
@@ -262,7 +277,7 @@ class MayaCommand:
 
             description = argument.description.splitlines()
             description = " ".join(description)
-            fn_string += f"        {argument_name} ({str(argument.properties)}): {description}\n"
+            fn_string += f"        {argument_name}: ({str(argument.properties)}) - {description}\n"
 
         fn_string += "    \"\"\"\n"
         fn_string += "    pass\n\n"
@@ -303,7 +318,7 @@ class Properties:
         return [i for i in dir(self) if not i.startswith("_")]
 
     def __repr__(self):
-        return ", ".join([i.title() for i in self._arguments if getattr(self, i) is True])
+        return ", ".join([i for i in self._arguments if getattr(self, i) is True])
 
 
 if __name__ == "__main__":
@@ -313,4 +328,5 @@ if __name__ == "__main__":
 
     maya_commands = scrape_maya_commands(offline_docs_path=source_dir)
     write_command_stubs(target_file_path=target_dir,
-                        command_objects=maya_commands, force=True)
+                        command_objects=maya_commands,
+                        force=force_overwrite)
