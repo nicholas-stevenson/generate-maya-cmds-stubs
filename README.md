@@ -7,10 +7,13 @@ So with that, I thought I would give it a go!  I hope this helps speed up my fel
 
 # Example in Use
 ## PyCharm
-![code_completion_pycharm](https://user-images.githubusercontent.com/1255630/218574564-e661a37c-296e-45dc-aa34-86a26f3ff05c.gif)
+<img src="https://user-images.githubusercontent.com/1255630/218574564-e661a37c-296e-45dc-aa34-86a26f3ff05c.gif"  width="900">
 
 ## VSCode
+![vscode_completion](https://user-images.githubusercontent.com/1255630/218580124-2b40f9eb-b29e-406d-ba41-8355eefee89b.gif)
 
+Note: You may want to enable Python > Analysis: Type Checking Mode from its default of *off* to *basic*.  Without this enabled, you will not be warned if you are mis-using an argument by passing in something it isn't expecting.  
+![type_hinting_toggle](https://user-images.githubusercontent.com/1255630/218581126-9c7891bd-917a-4488-83bc-d738c553228b.png)
 
 # To-Do
 This is the initial release of this module, and there is much house-keeping that should be done.  However, it is generating functional cmds-stubs, and while some of my planned refactoring should speed up performance, I don't anticipate the end-results changing much.
@@ -27,7 +30,7 @@ Using mayapy.exe to generate the code stubs activates additional behavior as the
 
 ## Downloading the necessary Maya Documentation
 - https://knowledge.autodesk.com/support/maya/downloads/caas/downloads/content/download-install-maya-product-help.html
-- ![image](https://user-images.githubusercontent.com/1255630/218574778-57fb65c1-6337-47ac-ab32-8fceeaf6db21.png)
+- ![download_docs_image](https://user-images.githubusercontent.com/1255630/218574988-3e6f9019-6e2e-435b-9505-987f304dee5f.png)
 - If the url changes, simply search for "Maya Documentation" and one of the top results should be the website for downloading offline documentation
 
 # Usage
