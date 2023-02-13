@@ -2,8 +2,17 @@ from __future__ import annotations
 
 import os
 import shutil
+import sys
 import traceback
 from typing import List, Optional
+
+if os.path.basename(sys.executable) == "mayapy.exe":
+    import maya.standalone
+
+    maya.standalone.initialize()
+    import maya.cmds as cmds
+else:
+    cmds = None
 
 import bs4
 import scandir
@@ -170,7 +179,23 @@ def scrape_maya_commands(offline_docs_path: str) -> List[MayaCommand]:
     return maya_commands_list
 
 
-def write_command_stubs(target_file_path: str, command_objects: List[MayaCommand], force: bool = False) -> None:
+def external_commands(parsed_commands: List[MayaCommand]):
+    external_maya_commands = []
+    parsed_command_names = [c.function for c in parsed_commands]
+
+    for command in [c for c in dir(cmds) if not c.startswith("_")]:
+        if command not in parsed_command_names:
+            new_command = ExternalCommand()
+            external_maya_commands.append(new_command)
+            new_command.function = command
+
+    return external_maya_commands
+
+
+def write_command_stubs(target_file_path: str,
+                        command_objects: List[MayaCommand],
+                        external_commands: List[ExternalCommand],
+                        force: bool = False) -> None:
     """Writes the provided command objects to the target path."""
     if not os.path.exists(target_file_path):
         raise IOError(f"Target file path does not exits, aborting.\nTarget Path: {target_file_path}")
@@ -201,6 +226,8 @@ def write_command_stubs(target_file_path: str, command_objects: List[MayaCommand
     with open(os.path.join(output_directory, "__init__.py"), "w") as f:
         for category in base_categories:
             f.write(f"from maya.cmds.{category} import *\n")
+        if external_commands:
+            f.write(f"from maya.cmds.External import *\n")
 
     for category in base_categories:
         with open(os.path.join(output_directory, f"{category}.py"), "w") as f:
@@ -210,6 +237,14 @@ def write_command_stubs(target_file_path: str, command_objects: List[MayaCommand
         base_category = command.categories[0]
         with open(os.path.join(output_directory, f"{base_category}.py"), "a") as f:
             f.write(f"{command.as_stub()}\n")
+
+    if external_commands:
+        with open(os.path.join(output_directory, f"External.py"), "w") as f:
+            ...
+
+        with open(os.path.join(output_directory, f"External.py"), "a") as f:
+            for external_command in external_commands:
+                f.write(f"{external_command.as_stub()}")
 
     print("Done!")
 
@@ -237,7 +272,7 @@ class MayaCommand:
 
             if argument.properties.create or argument.properties.query:
                 if arg_typehint != "bool":
-                    arg_typehint = f"Union[{arg_typehint}, bool]"
+                    arg_typehint = f"Optional[Union[{arg_typehint}, bool]]"
 
             if long_args:
                 fn_string += f" {argument.long_name}: {arg_typehint} = {arg_default},"
@@ -285,6 +320,19 @@ class MayaCommand:
         return fn_string
 
 
+class ExternalCommand:
+    def __init__(self):
+        self.function: str = ""
+
+    def as_stub(self):
+        fn_string = ""
+        fn_string += f"def {self.function}("
+        fn_string += "*args, **kwargs"
+        fn_string += "): pass\n"
+
+        return fn_string
+
+
 class Argument:
     def __init__(self):
         self.long_name: str = ""
@@ -327,6 +375,13 @@ if __name__ == "__main__":
             os.mkdir(asset_path)
 
     maya_commands = scrape_maya_commands(offline_docs_path=source_dir)
+
+    if cmds is not None:
+        external_commands = external_commands(maya_commands)
+    else:
+        external_commands = []
+
     write_command_stubs(target_file_path=target_dir,
                         command_objects=maya_commands,
+                        external_commands=external_commands,
                         force=force_overwrite)
