@@ -15,7 +15,6 @@ else:
     cmds = None
 
 import bs4
-import scandir
 
 from type_tables import args_to_typehints, undo_query_edit_to_bools
 
@@ -62,7 +61,7 @@ def scrape_maya_commands(offline_docs_path: str) -> List[MayaCommand]:
     if not os.path.exists(offline_docs_path):
         raise IOError("Offline documents could not be found, aborting.")
 
-    command_docs = [f for f in scandir.listdir(offline_docs_path) if os.path.splitext(f)[1] == ".html"]
+    command_docs = [f for f in os.listdir(offline_docs_path) if os.path.splitext(f)[1] == ".html"]
     argument_types = []
     maya_commands_list = []
 
