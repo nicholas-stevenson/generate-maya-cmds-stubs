@@ -7,7 +7,7 @@ So with that, I thought I would give it a go!  I hope this helps speed up my fel
 
 # Example in Use
 ## PyCharm
-![code_completion_pycharm](https://user-images.githubusercontent.com/1255630/218574016-e02e2f4c-df7d-4cac-97fe-5b37b2bb1dca.gif)
+![code_completion_pycharm](https://user-images.githubusercontent.com/1255630/218574564-e661a37c-296e-45dc-aa34-86a26f3ff05c.gif)
 
 ## VSCode
 
