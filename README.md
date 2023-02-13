@@ -7,7 +7,7 @@ So with that, I thought I would give it a go!  I hope this helps speed up my fel
 
 # Example in Use
 ## PyCharm
-
+https://user-images.githubusercontent.com/1255630/218573922-b6d1a3ed-e529-4b09-9465-558d66137c17.mp4
 
 ## VSCode
 
@@ -27,7 +27,7 @@ Using mayapy.exe to generate the code stubs activates additional behavior as the
 
 ## Downloading the necessary Maya Documentation
 - https://knowledge.autodesk.com/support/maya/downloads/caas/downloads/content/download-install-maya-product-help.html
-- ![maya_offline_docs_download.png](wiki%2Fmaya_offline_docs_download.png)
+- ![maya_offline_docs_download](https://user-images.githubusercontent.com/1255630/218573895-1bb07f5c-3aee-44ac-86e2-371b8c5051d6.png)
 - If the url changes, simply search for "Maya Documentation" and one of the top results should be the website for downloading offline documentation
 
 # Usage
