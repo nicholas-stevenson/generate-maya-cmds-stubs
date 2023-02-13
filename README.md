@@ -27,7 +27,7 @@ Using mayapy.exe to generate the code stubs activates additional behavior as the
 
 ## Downloading the necessary Maya Documentation
 - https://knowledge.autodesk.com/support/maya/downloads/caas/downloads/content/download-install-maya-product-help.html
-- ![maya_offline_docs_download](https://user-images.githubusercontent.com/1255630/218573895-1bb07f5c-3aee-44ac-86e2-371b8c5051d6.png)
+- ![image](https://user-images.githubusercontent.com/1255630/218574778-57fb65c1-6337-47ac-ab32-8fceeaf6db21.png)
 - If the url changes, simply search for "Maya Documentation" and one of the top results should be the website for downloading offline documentation
 
 # Usage
