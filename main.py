@@ -197,9 +197,9 @@ def write_command_stubs(cmds_directory: str,
 
     with open(os.path.join(cmds_directory, "__init__.py"), "w") as f:
         for category in base_categories:
-            f.write(f"from maya.cmds.{category} import *\n")
+            f.write(f"from {category} import *\n")
         if external_commands:
-            f.write(f"from maya.cmds.External import *\n")
+            f.write(f"from External import *\n")
 
     for category in base_categories:
         with open(os.path.join(cmds_directory, f"{category}.py"), "w") as f:
@@ -345,7 +345,7 @@ if __name__ == "__main__":
     # Create the ./source/ and ./target/ folders if they don't already exist
     for asset_path in [target_folder_path, source_folder_path]:
         if not os.path.exists(asset_path):
-            os.mkdir(asset_path)
+            os.makedirs(asset_path)
 
     if not any([short_args, long_args]):
         raise RuntimeError("Must specify at least one type of argument style, short or long.  Aborting.")
@@ -353,21 +353,24 @@ if __name__ == "__main__":
     if not os.path.exists(target_folder_path):
         raise IOError(f"Target file path does not exits, aborting.\nTarget Path: {target_folder_path}")
 
-    if os.path.exists(target_folder_path) and os.listdir(target_folder_path):
-        if not force_overwrite:
-            raise IOError("The target directory already exists, Rename, move, or delete this folder to continue.\n"
-                          "Optional: Use the boolean flag Force to reset the contents of this directory automatically.")
-        else:
-            shutil.rmtree(target_folder_path)
-
     # The cmds module must be inside a folder named /maya/, to match Maya's own
     # module structure for the cmds module.  Eg: import maya.cmds is ./maya/cmds/
     maya_directory = os.path.join(target_folder_path, "maya")
     cmds_directory = os.path.join(target_folder_path, "maya", "cmds")
-    os.makedirs(cmds_directory)
 
-    with open(os.path.join(maya_directory, f"__init__.py"), "w") as f:
-        ...
+    if os.path.exists(cmds_directory) and os.listdir(cmds_directory):
+        if not force_overwrite:
+            raise IOError("The target directory already exists, Rename, move, or delete this folder to continue.\n"
+                          "Optional: Use the boolean flag Force to reset the contents of this directory automatically.")
+        else:
+            shutil.rmtree(cmds_directory)
+
+    if not os.path.exists(cmds_directory):
+        os.makedirs(cmds_directory)
+
+    if not os.path.isfile(os.path.join(maya_directory, f"__init__.py")):
+        with open(os.path.join(maya_directory, f"__init__.py"), "w") as f:
+            ...
 
     maya_commands = scrape_maya_commands(offline_docs_path=source_folder_path)
 
