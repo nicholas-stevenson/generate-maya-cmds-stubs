@@ -4,9 +4,24 @@ from typing import Tuple
 
 
 def args_to_typehints(argument) -> Tuple[str, str]:
-    """This function holds all unique argument occurences found throughout
+    """This function holds all unique argument occurrences found throughout
     the autodesk documentation.  If any new styles are found in the future,
-    updating the table below should account for the new additions."""
+    updating the table below should account for the new additions.
+
+    The Key side of the dictionary holds the help docs form of the argument's accepted type
+    Eg: aimVector=[float, float, float]
+
+    The Value side of the dictionary holds a 2 item list.
+    1 : The type-hinted form of this argument
+    2 : The Python formatted raw data type form of this argument.
+
+    Example:
+        cmds.aimConstraint(aimVector=[float, float, float])
+
+    To generate a docstring for this style of arguments, the results would be:
+        Type-hint : Tuple[float, float, float]
+        Python    : (float, float, float)
+    """
     lookup_table = {"boolean": ["bool",
                                 "bool"],
                     "string": ["str",
