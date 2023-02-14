@@ -18,34 +18,22 @@ import bs4
 
 from type_tables import args_to_typehints, undo_query_edit_to_bools
 
-# Environment variables for modifying the various behaviors of this utility.
-
 # Source and Target variables control where the utility should look for the
 # offline html docs (source), and where to write the generated stubs (target)
-source_dir = os.getenv("CMDS_STUBS_SOURCE_DIR", "")
-target_dir = os.getenv("CMDS_STUBS_TARGET_DIR", "")
+source_file_path = os.getenv("CMDS_STUBS_SOURCE_DIR", os.path.join(os.getcwd(), "source"))
+target_file_path = os.getenv("CMDS_STUBS_TARGET_DIR", os.path.join(os.getcwd(), "target"))
 
 # Some users and studios prefer sticking to one type of arguments.
 # The variables below allow the generated stubs to conform to either,
 # or even both short and long at the same time.
-long_args = (os.getenv("CMDS_STUBS_LONG_ARGS", "").lower() in ["true", "1"])
-short_args = (os.getenv("CMDS_STUBS_SHORT_ARGS", "").lower() in ["true", "1"])
+long_args = (os.getenv("CMDS_STUBS_LONG_ARGS", "true").lower() in ["true", "1"])
+short_args = (os.getenv("CMDS_STUBS_SHORT_ARGS", "true").lower() in ["true", "1"])
 
 # When generating the stubs, the results will be written to a folder titled
 # cmds, after the main maya python cmds module.  The utility will check if
 # this directory exists, and if it is empty, and halt if the directory already has contents.
 # This flag will inform the tool to forcibly clear the output directory automatically.
 force_overwrite = (os.getenv("CMDS_STUBS_FORCE_OVERWRITE", "").lower() in ["true", "1"])
-
-if not any([short_args, long_args]):
-    raise RuntimeError("Must specify at least one type of argument style, aborting.")
-
-# If env variables are not used, use the current active directory.
-if not source_dir:
-    source_dir = os.path.join(os.getcwd(), "source")
-
-if not target_dir:
-    target_dir = os.path.join(os.getcwd(), "target")
 
 
 def scrape_maya_commands(offline_docs_path: str) -> List[MayaCommand]:
@@ -191,25 +179,10 @@ def external_commands(parsed_commands: List[MayaCommand]):
     return external_maya_commands
 
 
-def write_command_stubs(target_file_path: str,
+def write_command_stubs(cmds_directory: str,
                         command_objects: List[MayaCommand],
-                        external_commands: List[ExternalCommand],
-                        force: bool = False) -> None:
+                        external_commands: List[ExternalCommand]) -> None:
     """Writes the provided command objects to the target path."""
-    if not os.path.exists(target_file_path):
-        raise IOError(f"Target file path does not exits, aborting.\nTarget Path: {target_file_path}")
-
-    output_directory = os.path.join(target_file_path, "cmds")
-    if os.path.exists(output_directory):
-        if not force:
-            raise IOError("The target directory already contains a sub-folder named cmds\n"
-                          "Rename, move, or delete this folder to continue.\n"
-                          "Use the boolean flag Force to overwrite this directory automatically.")
-        else:
-            shutil.rmtree(output_directory)
-
-    os.mkdir(output_directory)
-
     base_categories = []
 
     for command in command_objects:
@@ -222,26 +195,26 @@ def write_command_stubs(target_file_path: str,
 
     print("Writing doc stubs...")
 
-    with open(os.path.join(output_directory, "__init__.py"), "w") as f:
+    with open(os.path.join(cmds_directory, "__init__.py"), "w") as f:
         for category in base_categories:
             f.write(f"from maya.cmds.{category} import *\n")
         if external_commands:
             f.write(f"from maya.cmds.External import *\n")
 
     for category in base_categories:
-        with open(os.path.join(output_directory, f"{category}.py"), "w") as f:
+        with open(os.path.join(cmds_directory, f"{category}.py"), "w") as f:
             f.write("from typing import Union, Optional, List, Tuple\n\n")
 
     for command in command_objects:
         base_category = command.categories[0]
-        with open(os.path.join(output_directory, f"{base_category}.py"), "a") as f:
+        with open(os.path.join(cmds_directory, f"{base_category}.py"), "a") as f:
             f.write(f"{command.as_stub()}\n")
 
     if external_commands:
-        with open(os.path.join(output_directory, f"External.py"), "w") as f:
+        with open(os.path.join(cmds_directory, f"External.py"), "w") as f:
             ...
 
-        with open(os.path.join(output_directory, f"External.py"), "a") as f:
+        with open(os.path.join(cmds_directory, f"External.py"), "a") as f:
             for external_command in external_commands:
                 f.write(f"{external_command.as_stub()}")
 
@@ -369,18 +342,34 @@ class Properties:
 
 
 if __name__ == "__main__":
-    for asset_path in [target_dir, source_dir]:
+    if not any([short_args, long_args]):
+        raise RuntimeError("Must specify at least one type of argument style, short or long.  Aborting.")
+
+    if not os.path.exists(target_file_path):
+        raise IOError(f"Target file path does not exits, aborting.\nTarget Path: {target_file_path}")
+
+    cmds_directory = os.path.join(target_file_path, "cmds")
+    if os.path.exists(cmds_directory):
+        if not force_overwrite:
+            raise IOError("The target directory already contains a sub-folder named cmds\n"
+                          "Rename, move, or delete this folder to continue.\n"
+                          "Use the boolean flag Force to overwrite this directory automatically.")
+        else:
+            shutil.rmtree(cmds_directory)
+
+    os.mkdir(cmds_directory)
+
+    for asset_path in [target_file_path, source_file_path]:
         if not os.path.exists(asset_path):
             os.mkdir(asset_path)
 
-    maya_commands = scrape_maya_commands(offline_docs_path=source_dir)
+    maya_commands = scrape_maya_commands(offline_docs_path=source_file_path)
 
     if cmds is not None:
         external_commands = external_commands(maya_commands)
     else:
         external_commands = []
 
-    write_command_stubs(target_file_path=target_dir,
+    write_command_stubs(cmds_directory=cmds_directory,
                         command_objects=maya_commands,
-                        external_commands=external_commands,
-                        force=force_overwrite)
+                        external_commands=external_commands)
