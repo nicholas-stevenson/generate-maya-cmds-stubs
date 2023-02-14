@@ -69,7 +69,9 @@ These instructions assume you are downloading one of the Release bundles.  Howev
   - ![image](https://user-images.githubusercontent.com/1255630/218796373-9c170cc1-a2e7-4822-a165-a73db3184654.png)
 - In this example, I have added the long arguments style folder
   - ![image](https://user-images.githubusercontent.com/1255630/218796550-975ed603-c1f7-4301-b490-092dd12c7b35.png)
-
+- Click Ok/Apply as you close the settings panels
+- From a blank .py document, attempt work with with the maya.cmds module
+  - ![image](https://user-images.githubusercontent.com/1255630/218808325-c85bf3fe-d5ca-44bd-9824-1e219edac13c.png)
 
 # Generating The Stubs
 The details below explain how you can run this tool yourself.  The instructions are not exhaustive, and assume some level of python, pip, and environment knowledge.  But the script is rather straight forward.
