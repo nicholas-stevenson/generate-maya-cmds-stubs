@@ -20,8 +20,8 @@ from type_tables import args_to_typehints, undo_query_edit_to_bools
 
 # Source and Target variables control where the utility should look for the
 # offline html docs (source), and where to write the generated stubs (target)
-source_file_path = os.getenv("CMDS_STUBS_SOURCE_DIR", os.path.join(os.getcwd(), "source"))
-target_file_path = os.getenv("CMDS_STUBS_TARGET_DIR", os.path.join(os.getcwd(), "target"))
+source_folder_path = os.getenv("CMDS_STUBS_SOURCE_DIR", os.path.join(os.getcwd(), "source"))
+target_folder_path = os.getenv("CMDS_STUBS_TARGET_DIR", os.path.join(os.getcwd(), "target"))
 
 # Some users and studios prefer sticking to one type of arguments.
 # The variables below allow the generated stubs to conform to either,
@@ -342,28 +342,34 @@ class Properties:
 
 
 if __name__ == "__main__":
-    if not any([short_args, long_args]):
-        raise RuntimeError("Must specify at least one type of argument style, short or long.  Aborting.")
-
-    if not os.path.exists(target_file_path):
-        raise IOError(f"Target file path does not exits, aborting.\nTarget Path: {target_file_path}")
-
-    cmds_directory = os.path.join(target_file_path, "cmds")
-    if os.path.exists(cmds_directory):
-        if not force_overwrite:
-            raise IOError("The target directory already contains a sub-folder named cmds\n"
-                          "Rename, move, or delete this folder to continue.\n"
-                          "Use the boolean flag Force to overwrite this directory automatically.")
-        else:
-            shutil.rmtree(cmds_directory)
-
-    os.mkdir(cmds_directory)
-
-    for asset_path in [target_file_path, source_file_path]:
+    # Create the ./source/ and ./target/ folders if they don't already exist
+    for asset_path in [target_folder_path, source_folder_path]:
         if not os.path.exists(asset_path):
             os.mkdir(asset_path)
 
-    maya_commands = scrape_maya_commands(offline_docs_path=source_file_path)
+    if not any([short_args, long_args]):
+        raise RuntimeError("Must specify at least one type of argument style, short or long.  Aborting.")
+
+    if not os.path.exists(target_folder_path):
+        raise IOError(f"Target file path does not exits, aborting.\nTarget Path: {target_folder_path}")
+
+    if os.path.exists(target_folder_path) and os.listdir(target_folder_path):
+        if not force_overwrite:
+            raise IOError("The target directory already exists, Rename, move, or delete this folder to continue.\n"
+                          "Optional: Use the boolean flag Force to reset the contents of this directory automatically.")
+        else:
+            shutil.rmtree(target_folder_path)
+
+    # The cmds module must be inside a folder named /maya/, to match Maya's own
+    # module structure for the cmds module.  Eg: import maya.cmds is ./maya/cmds/
+    maya_directory = os.path.join(target_folder_path, "maya")
+    cmds_directory = os.path.join(target_folder_path, "maya", "cmds")
+    os.makedirs(cmds_directory)
+
+    with open(os.path.join(maya_directory, f"__init__.py"), "w") as f:
+        ...
+
+    maya_commands = scrape_maya_commands(offline_docs_path=source_folder_path)
 
     if cmds is not None:
         external_commands = external_commands(maya_commands)

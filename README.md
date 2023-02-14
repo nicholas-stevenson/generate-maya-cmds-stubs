@@ -44,6 +44,21 @@ Note: You may want to enable Python > Analysis: Type Checking Mode from its defa
 # Releases
 If you are a Maya Python developer and simply want at the results of this tool, check out the Release section found on the right side of the GitHub interface
 
+## Installation
+### PyCharm
+To install these stubs into PyCharm, simply build or download one of the releases.  If you download a release, choose the arguments style that you prefer (long, short, both).  
+- Extract the contents of the short/long/both directory to a folder of its own.
+  - Your new folder should now contain a `./maya/` folder
+- Configure your PyCharm Python interpreter
+- Add the folder which **contains** the `./maya/` folder.
+  - Do not add the `./maya/` folder to your interpreter paths.  Rather, add the folder that contains this `./maya/` folder.
+- Open a new python file
+- use `import maya.cmds`
+- Attempt to use a builtin maya command
+  - Eg: `maya.cmds.spaceLocator()`
+  - 
+  - You should see the completion details appear
+
 # Generating The Stubs
 The details below explain how you can run this tool yourself.  The instructions are not exhaustive, and assume some level of python, pip, and environment knowledge.  But the script is rather straight forward.
 
