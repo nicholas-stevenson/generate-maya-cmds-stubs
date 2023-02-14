@@ -9,12 +9,12 @@ So with that all of that, this is my attempt at just such a system!  I hope this
 The code chunk below shows the results of a long-argument docstring generated for the `spaceLocator` command.
 - Uses native Python3 type hints, offering a complete list of allowed data types for each argument.
 - Argument names and default values are specified
-- `edit` and `query` flags are also included if the
-- Arguments and their type hints handle if the expected data type changes when the command is called vs queried or edited.
+- `edit` and/or `query` flags are also included, if the command allows for it.
+- Arguments and their type hints handle if the expected data type changes when the command is called vs queried vs edited.
   - Typical Call vs Query Call
     - ```cmds.xform("locator", translation=(1, 1, 1))```
     - ```cmds.xform("locator", translation=True, query=True)```
-- The resulting docstring is very condensed and avoids large visual breaks, which becomes cumbersome with commands that have a large number of arguments.
+- The resulting docstrings are very condensed and avoid large visual breaks, which becomes cumbersome with commands that have a large number of arguments.
 
 ```python
 def spaceLocator(*args, absolute: bool = bool, name: Optional[Union[str, bool]] = str, position: Optional[Union[Tuple[float, float, float], bool]] = [float, float, float], relative: bool = bool, edit: bool = bool, query: bool = bool):
@@ -45,19 +45,31 @@ Note: You may want to enable Python > Analysis: Type Checking Mode from its defa
 If you are a Maya Python developer and simply want at the results of this tool, check out the Release section found on the right side of the GitHub interface
 
 ## Installation
+These instructions assume you are downloading one of the Release bundles.  However, if you choose to build these tools, the method for adding these to an IDE are nearly identical.
+
+### Do This First
+- Download the latest release from the Releases section found on the right side of the GitHub interface.
+- Extract the contents to its own folder
+- Choose the argument style you prefer.
+  - Short Arguments
+    - `maya.cmds.ls(sl=True)`
+  - Long Arguments
+    - `maya.cmds.ls(selection=True)`
+  - Both
+
 ### PyCharm
-To install these stubs into PyCharm, simply build or download one of the releases.  If you download a release, choose the arguments style that you prefer (long, short, both).  
-- Extract the contents of the short/long/both directory to a folder of its own.
-  - Your new folder should now contain a `./maya/` folder
-- Configure your PyCharm Python interpreter
-- Add the folder which **contains** the `./maya/` folder.
-  - Do not add the `./maya/` folder to your interpreter paths.  Rather, add the folder that contains this `./maya/` folder.
-- Open a new python file
-- use `import maya.cmds`
-- Attempt to use a builtin maya command
-  - Eg: `maya.cmds.spaceLocator()`
-  - 
-  - You should see the completion details appear
+- Choose File > Settings > Project > Python Interpreter
+![image](https://user-images.githubusercontent.com/1255630/218795256-b7eec507-dd86-4b5f-9e59-40d3c73fe11a.png)
+- Select the dropdown under your current Python Interpreter
+- Select _Show All..._
+  - ![image](https://user-images.githubusercontent.com/1255630/218795437-98526d8e-6a20-4b34-9eb7-66cf44fa4ea9.png)
+- With your interpreter selected from the list, click the Folder dropdown icon
+  - ![image](https://user-images.githubusercontent.com/1255630/218796072-3af6a687-bf40-4b12-984c-48be755a176b.png)
+- Select the `+` button to add a new directory to this interpreter
+  - ![image](https://user-images.githubusercontent.com/1255630/218796373-9c170cc1-a2e7-4822-a165-a73db3184654.png)
+- In this example, I have added the long arguments style folder
+  - ![image](https://user-images.githubusercontent.com/1255630/218796550-975ed603-c1f7-4301-b490-092dd12c7b35.png)
+
 
 # Generating The Stubs
 The details below explain how you can run this tool yourself.  The instructions are not exhaustive, and assume some level of python, pip, and environment knowledge.  But the script is rather straight forward.
