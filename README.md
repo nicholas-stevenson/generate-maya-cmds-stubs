@@ -75,8 +75,8 @@ If you are Maya Python developer and want to hit the ground running, check out t
 - In this example, I have added the folder for the long arguments style, to the interpreter paths.
   - ![image](https://user-images.githubusercontent.com/1255630/218796550-975ed603-c1f7-4301-b490-092dd12c7b35.png)
 
-- You **might** need to remove Maya's internal site-packages folder by selecting it and pressing the `-` button.  I did not need to do this on my system, for the cmds stubs to work correctly.  However, Maya comes with its own cmds module which PyCharm might find instead.  This module is unreadable by PyCharm (hence the need for these stubs in the first place), but if PyCharm finds that module first, it may interfere with the display of the code stubs.
-
+- You **might** need to remove Maya's internal site-packages folder by selecting it and pressing the `-` button.  I did not need to do this on my system for the cmds stubs to work correctly.  However, Maya comes with its own cmds module which PyCharm might find instead.  This module is unreadable by PyCharm (hence the need for these stubs in the first place), but if PyCharm finds that module first, it may interfere with the display of the code stubs.
+  - ![image](https://user-images.githubusercontent.com/1255630/219101566-b033edc0-7f7a-462c-8756-6bebd5666523.png)
 
 # Generating The Stubs
 The details below explain how you can run this tool yourself.  The instructions are not exhaustive, and assume some level of python, pip, and environment knowledge.  But the script is rather straight forward.
