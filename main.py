@@ -117,12 +117,12 @@ def scrape_maya_commands(offline_docs_path: str) -> List[MayaCommand]:
                     maya_command.undoable, maya_command.queryable, maya_command.editable = undo_query_edit_to_bools(
                         section.text)
 
-            for idx, section in enumerate(soup.body.contents[undo_query_edit_section:]):
-                if not isinstance(section, bs4.NavigableString) or section == "\n":
-                    continue
+            for idx, section in enumerate(soup.body.contents[undo_query_edit_section+1:]):
+                if "Return value" in section.text:
+                    maya_command.description += section.text.split("Return value")[0]
+                    break
 
-                maya_command.description = section.text.strip()
-                break
+                maya_command.description += section.text
 
             arguments_table: Optional[bs4.element.Tag] = None
 
@@ -265,9 +265,9 @@ class MayaCommand:
 
         fn_string += "    \"\"\"\n"
 
-        desc = [i.strip() for i in self.description.splitlines() if i.strip()]
+        desc = self.description.strip().splitlines(keepends=True)
 
-        fn_string += "    {d}\n".format(d=" ".join(desc))
+        fn_string += "    {d}\n".format(d="    ".join(desc))
 
         fn_string += "\n"
 
