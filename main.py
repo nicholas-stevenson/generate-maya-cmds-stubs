@@ -199,7 +199,7 @@ def write_command_stubs(cmds_directory: str,
         for category in base_categories:
             f.write(f"from {category} import *\n")
         if external_commands:
-            f.write(f"from External import *\n")
+            f.write("from External import *\n")
 
     for category in base_categories:
         with open(os.path.join(cmds_directory, f"{category}.py"), "w") as f:
@@ -211,10 +211,10 @@ def write_command_stubs(cmds_directory: str,
             f.write(f"{command.as_stub()}\n")
 
     if external_commands:
-        with open(os.path.join(cmds_directory, f"External.py"), "w") as f:
+        with open(os.path.join(cmds_directory, "External.py"), "w") as f:
             ...
 
-        with open(os.path.join(cmds_directory, f"External.py"), "a") as f:
+        with open(os.path.join(cmds_directory, "External.py"), "a") as f:
             for external_command in external_commands:
                 f.write(f"{external_command.as_stub()}")
 
@@ -246,11 +246,15 @@ class MayaCommand:
                 if arg_typehint != "bool":
                     arg_typehint = f"Optional[Union[{arg_typehint}, bool]]"
 
-            if long_args:
+            # Accounts for arguments that use the same argument name for both short or long styles
+            if long_args and short_args and argument.long_name == argument.short_name:
                 fn_string += f" {argument.long_name}: {arg_typehint} = {arg_default},"
+            else:
+                if long_args and argument.long_name:
+                    fn_string += f" {argument.long_name}: {arg_typehint} = {arg_default},"
 
-            if short_args:
-                fn_string += f" {argument.short_name}: {arg_typehint} = {arg_default},"
+                if short_args and argument.short_name:
+                    fn_string += f" {argument.short_name}: {arg_typehint} = {arg_default},"
 
         if self.editable:
             fn_string += " edit: bool = bool,"
@@ -276,7 +280,9 @@ class MayaCommand:
         for argument in self.arguments:
             argument_name = ""
             if long_args and short_args:
-                argument_name = " | ".join([argument.long_name, argument.short_name])
+                argument_name = argument.long_name
+                if argument.short_name:
+                    argument_name += f" | {argument.short_name}"
             elif long_args:
                 argument_name = argument.long_name
             elif short_args:
@@ -368,8 +374,8 @@ if __name__ == "__main__":
     if not os.path.exists(cmds_directory):
         os.makedirs(cmds_directory)
 
-    if not os.path.isfile(os.path.join(maya_directory, f"__init__.py")):
-        with open(os.path.join(maya_directory, f"__init__.py"), "w") as f:
+    if not os.path.isfile(os.path.join(maya_directory, "__init__.py")):
+        with open(os.path.join(maya_directory, "__init__.py"), "w") as f:
             ...
 
     maya_commands = scrape_maya_commands(offline_docs_path=source_folder_path)
