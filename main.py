@@ -203,7 +203,7 @@ def write_command_stubs(cmds_directory: str,
 
     for category in base_categories:
         with open(os.path.join(cmds_directory, f"{category}.py"), "w") as f:
-            f.write("from typing import Union, Optional, List, Tuple\n\n")
+            f.write("from typing import Union, Optional, List, Tuple, Any\n\n")
 
     for command in command_objects:
         base_category = command.categories[0]
@@ -212,7 +212,7 @@ def write_command_stubs(cmds_directory: str,
 
     if external_commands:
         with open(os.path.join(cmds_directory, "External.py"), "w") as f:
-            ...
+            f.write("from typing import Any\n\n")
 
         with open(os.path.join(cmds_directory, "External.py"), "a") as f:
             for external_command in external_commands:
@@ -264,7 +264,7 @@ class MayaCommand:
         if fn_string.endswith(","):
             fn_string = fn_string[:-1]
 
-        fn_string += "):"
+        fn_string += ") -> Any:"
         fn_string += "\n"
 
         fn_string += "    \"\"\"\n"
@@ -293,7 +293,7 @@ class MayaCommand:
             fn_string += f"        {argument_name}: ({str(argument.properties)}) - {description}\n"
 
         fn_string += "    \"\"\"\n"
-        fn_string += "    pass\n\n"
+        fn_string += "    ...\n\n"
 
         return fn_string
 
@@ -306,7 +306,7 @@ class ExternalCommand:
         fn_string = ""
         fn_string += f"def {self.function}("
         fn_string += "*args, **kwargs"
-        fn_string += "): pass\n"
+        fn_string += ") -> Any: ...\n"
 
         return fn_string
 
@@ -348,6 +348,11 @@ class Properties:
 
 
 if __name__ == "__main__":
+    # Check if exe is mayapy.exe
+    if os.path.basename(sys.executable).lower().startswith("mayapy"):
+        import maya.standalone
+        maya.standalone.initialize()
+     
     # Create the ./source/ and ./target/ folders if they don't already exist
     for asset_path in [target_folder_path, source_folder_path]:
         if not os.path.exists(asset_path):
