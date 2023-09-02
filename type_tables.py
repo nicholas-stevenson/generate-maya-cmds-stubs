@@ -127,6 +127,8 @@ def args_to_typehints(argument) -> Optional[str]:
                     "[linear, linear, linear, linear, linear]": "Tuple[float, float, float, float, float]",
                     "[float, float, float, float, float, float, float, float, float, float, float, float, float, float, float, float]": 
                         "Tuple[float, float, float, float, float, float, float, float, float, float, float, float, float, float, float, float]",
+                    "[name, boolean]": "Tuple[str, bool]",
+                    "[name, int]": "Tuple[str, int]",
     }
 
     return lookup_table.get(argument)

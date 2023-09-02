@@ -131,3 +131,6 @@ dmypy.json
 # Ignore the code stubs and the output of this module
 /source
 /target
+
+# Ignore the generated files for github releases
+/release
