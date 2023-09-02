@@ -89,7 +89,7 @@ async def parse_command(file_path: str) -> Optional[MayaCommand]:
     for idx, section in enumerate(soup.body.contents):
         # The three states (undoable, queryable, editable) are always explicitly mentioned
         # look for all three to ensure that we don't accidentally enter a different sort of text block
-        # that happens to use just one fo these three words
+        # that happens to use just one of these three words
         if all(x in section.text for x in ("undoable", "queryable", "editable")):
             undo_query_edit_section = idx
             undoable_queryable_editable = undo_query_edit_to_bools(section.text)
