@@ -1,0 +1,9 @@
+pushd %~dp0
+
+set CMDS_STUBS_SOURCE_DIR=%~dp0\source
+set CMDS_STUBS_TARGET_DIR=%~dp0\target
+set CMDS_STUBS_LONG_ARGS=1
+set CMDS_STUBS_SHORT_ARGS=0
+set CMDS_STUBS_FORCE_OVERWRITE=1
+
+python.exe main.py

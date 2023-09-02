@@ -1,18 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import os
 import shutil
 import sys
 import traceback
-from typing import List, Optional
-
-if os.path.basename(sys.executable) == "mayapy.exe":
-    import maya.standalone
-
-    maya.standalone.initialize()
-    import maya.cmds as cmds
-else:
-    cmds = None
+from typing import List, Optional, Any
+import time
 
 import bs4
 
@@ -26,162 +20,137 @@ target_folder_path = os.getenv("CMDS_STUBS_TARGET_DIR", os.path.join(os.getcwd()
 # Some users and studios prefer sticking to one type of arguments.
 # The variables below allow the generated stubs to conform to either,
 # or even both short and long at the same time.
-long_args = (os.getenv("CMDS_STUBS_LONG_ARGS", "true").lower() in ["true", "1"])
-short_args = (os.getenv("CMDS_STUBS_SHORT_ARGS", "true").lower() in ["true", "1"])
+long_args = os.getenv("CMDS_STUBS_LONG_ARGS", "true").lower() in ["true", "1"]
+short_args = os.getenv("CMDS_STUBS_SHORT_ARGS", "true").lower() in ["true", "1"]
 
 # When generating the stubs, the results will be written to a folder titled
 # cmds, after the main maya python cmds module.  The utility will check if
 # this directory exists, and if it is empty, and halt if the directory already has contents.
 # This flag will inform the tool to forcibly clear the output directory automatically.
-force_overwrite = (os.getenv("CMDS_STUBS_FORCE_OVERWRITE", "").lower() in ["true", "1"])
+force_overwrite = os.getenv("CMDS_STUBS_FORCE_OVERWRITE", "").lower() in ["true", "1"]
 
 
-def scrape_maya_commands(offline_docs_path: str) -> List[MayaCommand]:
-    """
+async def parse_command(file_path: str) -> Optional[MayaCommand]:
+    soup: Optional[bs4.BeautifulSoup] = None
 
-    Args:
-        offline_docs_path: File path to a downloaded copy of the Maya python commands doc pages.
+    try:
+        with open(os.path.join(file_path), "r") as f:
+            soup = bs4.BeautifulSoup(f.read(), "html.parser")
+            if not hasattr(soup, "head") or soup.head is None:
+                # Excludes nested pages such as the Letter_A.html pages,
+                # which are alphabetical table-of-contents lists of commands,
+                # and do not have a header section.
+                return None
 
-    Returns:
+            if not soup.head.title or soup.head.title.text in (
+                "blank",
+                "Maya commands",
+            ):
+                # "blank" : There is a blank.html page in the api docs
+                # "Maya commands" : found in the index.html page
+                return None
 
-    """
+            header_metas = soup.head.find_all("meta")
+            if "NOINDEX" in [meta.attrs.get("content") for meta in header_metas]:
+                # This will catch the nested sub-pages which re-list commands in
+                # alphabetical order, by category, etc.
+                # Web spiders would double up command indexes so Autodesk appears to
+                # explicitly exclude them, which is handy for us.
+                return None
 
-    if not os.path.exists(offline_docs_path):
-        raise IOError("Offline documents could not be found, aborting.")
+            banner: Any = soup.find(id="banner")
 
-    command_docs = [f for f in os.listdir(offline_docs_path) if os.path.splitext(f)[1] == ".html"]
+            if "(Obsolete)" in banner.h1.text:
+                # Skip any deprecated commands that still have doc pages
+                # as these pages contain no documentation at all.
+                return None
+
+    except Exception as e:
+        print(f"\nFailed to parse: {os.path.basename(file_path)} with Exception: {e}")
+        traceback.print_exc()
+        return None
+
+    if not soup or not banner:
+        return None
+
+    maya_command = MayaCommand()
     argument_types = []
-    maya_commands_list = []
 
-    for doc in command_docs:
-        soup: Optional[bs4.BeautifulSoup] = None
+    categories_block = banner.table.contents[1]
+    categories_hrefs = categories_block.find_all("a", href=True)
+    maya_command.categories = [href.text for href in categories_hrefs]
 
-        try:
-            with open(os.path.join(offline_docs_path, doc), "r") as f:
+    maya_command.function = soup.body.find(id="synopsis").find("code").text.split("(")[0]
 
-                soup = bs4.BeautifulSoup(f.read(), "html.parser")
+    # Find the text section pertaining to the allowed command flags,
+    # found just after the main function and arguments block.
+    # eg: ..... is undoable, queryable, and editable.
+    undo_query_edit_section = None
+    for idx, section in enumerate(soup.body.contents):
+        # The three states (undoable, queryable, editable) are always explicitly mentioned
+        # look for all three to ensure that we don't accidentally enter a different sort of text block
+        # that happens to use just one fo these three words
+        if all(x in section.text for x in ("undoable", "queryable", "editable")):
+            undo_query_edit_section = idx
+            undoable_queryable_editable = undo_query_edit_to_bools(section.text)
+            if undoable_queryable_editable is None:
+                raise ValueError(f"Failed to parse undoable, queryable, editable block: {section.text}")
+            (
+                maya_command.undoable,
+                maya_command.queryable,
+                maya_command.editable,
+            ) = undoable_queryable_editable
+    
+    if not undo_query_edit_section:
+        raise ValueError(f"Failed to find undoable, queryable, editable block: {maya_command.function}")
 
-                if not hasattr(soup, "head") or soup.head is None:
-                    # Excludes nested pages such as the Letter_A.html pages,
-                    # which are alphabetical table-of-contents lists of commands,
-                    # and do not have a header section.
-                    continue
+    for idx, section in enumerate(soup.body.contents[undo_query_edit_section + 1 :]):
+        if "Return value" in section.text:
+            maya_command.description += section.text.split("Return value")[0]
+            break
 
-                if not soup.head.title or soup.head.title.text in ("blank", "Maya commands"):
-                    # "blank" : There is a blank.html page in the api docs
-                    # "Maya commands" : found in the index.html page
-                    continue
+        maya_command.description += section.text
 
-                header_metas = soup.head.find_all("meta")
-                if "NOINDEX" in [meta.attrs.get("content") for meta in header_metas]:
-                    # This will catch the nested sub-pages which re-list commands in
-                    # alphabetical order, by category, etc.
-                    # Web spiders would double up command indexes so Autodesk appears to
-                    # explicitly exclude them, which is handy for us.
-                    continue
+    arguments_table: Optional[bs4.element.Tag] = None
 
-                banner = soup.find(id="banner")
+    for table in soup.body.find_all("table"):
+        if table.find(string="Long name (short name)"):
+            arguments_table = table
+            break
 
-                if "(Obsolete)" in banner.h1.text:
-                    # Skip any deprecated commands that still have doc pages
-                    # as these pages contain no documentation at all.
-                    continue
+    if not arguments_table:
+        # This doc page contains no keyword arguments to parse
+        return maya_command
 
-        except Exception as e:
-            print(f"\nFailed to parse: {doc} with Exception: {e}")
-            traceback.print_exc()
-            continue
+    tr_groups = arguments_table.find_all("tr", recursive=False)
 
-        if soup:
-            print(f"Parsing {doc}...", end="")
+    # Walk through the tables until we hit the argument pairs.
+    for idx, table in enumerate(tr_groups):
+        if table.attrs and table.attrs.get("bgcolor") == "#EEEEEE":
+            header = table
+            command = tr_groups[idx + 1]
 
-            maya_command = MayaCommand()
-            maya_commands_list.append(maya_command)
+            argument = Argument()
 
-            categories_block = banner.table.contents[1]
-            categories_hrefs = categories_block.find_all("a", href=True)
-            maya_command.categories = [href.text for href in categories_hrefs]
+            names_section, type_section = header.find_all("code")
+            long_name, short_name = names_section.find_all("b")
+            properties_section = header.find_all("img")
+            argument.properties = Properties([p.get("title") for p in properties_section])
 
-            maya_command.function = soup.body.find(id="synopsis").find("code").text.split("(")[0]
+            argument.long_name = long_name.text
+            argument.short_name = short_name.text
 
-            # Find the text section pertaining to the allowed command flags,
-            # found just after the main function and arguments block.
-            # eg: ..... is undoable, queryable, and editable.
-            undo_query_edit_section = None
-            for idx, section in enumerate(soup.body.contents):
-                # The three states (undoable, queryable, editable) are always explicitly mentioned
-                # look for all three to ensure that we don't accidentally enter a different sort of text block
-                # that happens to use just one fo these three words
-                if all(x in section.text for x in ("undoable", "queryable", "editable")):
-                    undo_query_edit_section = idx
-                    maya_command.undoable, maya_command.queryable, maya_command.editable = undo_query_edit_to_bools(
-                        section.text)
+            argument.type = type_section.text.strip()
+            argument.description = command.text.strip()
 
-            for idx, section in enumerate(soup.body.contents[undo_query_edit_section+1:]):
-                if "Return value" in section.text:
-                    maya_command.description += section.text.split("Return value")[0]
-                    break
+            if argument.type not in argument_types:
+                argument_types.append(argument.type)
+            maya_command.arguments.append(argument)
 
-                maya_command.description += section.text
-
-            arguments_table: Optional[bs4.element.Tag] = None
-
-            for table in soup.body.find_all("table"):
-                if table.find(string="Long name (short name)"):
-                    arguments_table = table
-                    break
-
-            if not arguments_table:
-                # This doc page contains no keyword arguments to parse
-                print(f"done")
-                continue
-
-            tr_groups = arguments_table.find_all("tr", recursive=False)
-
-            # Walk through the tables until we hit the argument pairs.
-            for idx, table in enumerate(tr_groups):
-                if table.attrs and table.attrs.get("bgcolor") == "#EEEEEE":
-                    header = table
-                    command = tr_groups[idx + 1]
-
-                    argument = Argument()
-
-                    names_section, type_section = header.find_all("code")
-                    long_name, short_name = names_section.find_all("b")
-                    properties_section = header.find_all("img")
-                    argument.properties = Properties([p.get("title") for p in properties_section])
-
-                    argument.long_name = long_name.text
-                    argument.short_name = short_name.text
-
-                    argument.type = type_section.text.strip()
-                    argument.description = command.text.strip()
-
-                    if argument.type not in argument_types:
-                        argument_types.append(argument.type)
-                    maya_command.arguments.append(argument)
-
-            print("done")
-
-    return maya_commands_list
+    return maya_command
 
 
-def external_commands(parsed_commands: List[MayaCommand]):
-    external_maya_commands = []
-    parsed_command_names = [c.function for c in parsed_commands]
-
-    for command in [c for c in dir(cmds) if not c.startswith("_")]:
-        if command not in parsed_command_names:
-            new_command = ExternalCommand()
-            external_maya_commands.append(new_command)
-            new_command.function = command
-
-    return external_maya_commands
-
-
-def write_command_stubs(cmds_directory: str,
-                        command_objects: List[MayaCommand],
-                        external_commands: List[ExternalCommand]) -> None:
+def write_command_stubs(cmds_directory: str, command_objects: List[MayaCommand]) -> None:
     """Writes the provided command objects to the target path."""
     base_categories = []
 
@@ -198,8 +167,6 @@ def write_command_stubs(cmds_directory: str,
     with open(os.path.join(cmds_directory, "__init__.py"), "w") as f:
         for category in base_categories:
             f.write(f"from {category} import *\n")
-        if external_commands:
-            f.write("from External import *\n")
 
     for category in base_categories:
         with open(os.path.join(cmds_directory, f"{category}.py"), "w") as f:
@@ -209,14 +176,6 @@ def write_command_stubs(cmds_directory: str,
         base_category = command.categories[0]
         with open(os.path.join(cmds_directory, f"{base_category}.py"), "a") as f:
             f.write(f"{command.as_stub()}\n")
-
-    if external_commands:
-        with open(os.path.join(cmds_directory, "External.py"), "w") as f:
-            f.write("from typing import Any\n\n")
-
-        with open(os.path.join(cmds_directory, "External.py"), "a") as f:
-            for external_command in external_commands:
-                f.write(f"{external_command.as_stub()}")
 
     print("Done!")
 
@@ -237,29 +196,29 @@ class MayaCommand:
         fn_string += "*args,"
 
         for idx, argument in enumerate(self.arguments):
-            try:
-                arg_typehint, arg_default = args_to_typehints(argument.type)
-            except ValueError:
+            arg_typehint = args_to_typehints(argument.type)
+            if arg_typehint is None:
                 raise ValueError(f"Failed at {self.function} with argument format: {argument.type}")
 
-            if argument.properties.create or argument.properties.query:
-                if arg_typehint != "bool":
-                    arg_typehint = f"Optional[Union[{arg_typehint}, bool]]"
+            if argument and argument.properties:
+                if argument.properties.create or argument.properties.query:
+                    if arg_typehint != "bool":
+                        arg_typehint = f"Optional[Union[{arg_typehint}, bool]]"
 
             # Accounts for arguments that use the same argument name for both short or long styles
             if long_args and short_args and argument.long_name == argument.short_name:
-                fn_string += f" {argument.long_name}: {arg_typehint} = {arg_default},"
+                fn_string += f" {argument.long_name}: {arg_typehint} = ...,"
             else:
                 if long_args and argument.long_name:
-                    fn_string += f" {argument.long_name}: {arg_typehint} = {arg_default},"
+                    fn_string += f" {argument.long_name}: {arg_typehint} = ...,"
 
                 if short_args and argument.short_name:
-                    fn_string += f" {argument.short_name}: {arg_typehint} = {arg_default},"
+                    fn_string += f" {argument.short_name}: {arg_typehint} = ...,"
 
         if self.editable:
-            fn_string += " edit: bool = bool,"
+            fn_string += " edit: bool = ...,"
         if self.queryable:
-            fn_string += " query: bool = bool,"
+            fn_string += " query: bool = ...,"
 
         if fn_string.endswith(","):
             fn_string = fn_string[:-1]
@@ -267,7 +226,7 @@ class MayaCommand:
         fn_string += ") -> Any:"
         fn_string += "\n"
 
-        fn_string += "    \"\"\"\n"
+        fn_string += '    r"""\n'
 
         desc = self.description.strip().splitlines(keepends=True)
 
@@ -292,7 +251,7 @@ class MayaCommand:
             description = " ".join(description)
             fn_string += f"        {argument_name}: ({str(argument.properties)}) - {description}\n"
 
-        fn_string += "    \"\"\"\n"
+        fn_string += '    """\n'
         fn_string += "    ...\n\n"
 
         return fn_string
@@ -329,9 +288,11 @@ class Properties:
 
         for value in init_values:
             if value not in self._arguments:
-                raise ValueError("This command contains an unrecognized property\n"
-                                 f"Allowed properties    : {', '.join(self._arguments)}\n"
-                                 f"unrecognized property : {value}")
+                raise ValueError(
+                    "This command contains an unrecognized property\n"
+                    f"Allowed properties    : {', '.join(self._arguments)}\n"
+                    f"unrecognized property : {value}"
+                )
 
         for field in self._arguments:
             if str(field) in init_values:
@@ -347,12 +308,22 @@ class Properties:
         return ", ".join([i for i in self._arguments if getattr(self, i) is True])
 
 
+async def do_it():
+    command_docs = [f for f in os.listdir(source_folder_path) if os.path.splitext(f)[1] == ".html"]
+    print("Parsing docs...")
+
+    tasks = [asyncio.create_task(parse_command(os.path.join(source_folder_path, cmd))) for cmd in command_docs]
+    maya_commands = await asyncio.gather(*tasks)
+    maya_commands = [i for i in maya_commands if i is not None]
+
+    print("Writing stubs...")
+
+    write_command_stubs(
+        cmds_directory=cmds_directory,
+        command_objects=maya_commands,
+    )
+
 if __name__ == "__main__":
-    # Check if exe is mayapy.exe
-    if os.path.basename(sys.executable).lower().startswith("mayapy"):
-        import maya.standalone
-        maya.standalone.initialize()
-     
     # Create the ./source/ and ./target/ folders if they don't already exist
     for asset_path in [target_folder_path, source_folder_path]:
         if not os.path.exists(asset_path):
@@ -371,8 +342,10 @@ if __name__ == "__main__":
 
     if os.path.exists(cmds_directory) and os.listdir(cmds_directory):
         if not force_overwrite:
-            raise IOError("The target directory already exists, Rename, move, or delete this folder to continue.\n"
-                          "Optional: Use the boolean flag Force to reset the contents of this directory automatically.")
+            raise IOError(
+                "The target directory already exists, Rename, move, or delete this folder to continue.\n"
+                "Optional: Use the boolean flag Force to reset the contents of this directory automatically."
+            )
         else:
             shutil.rmtree(cmds_directory)
 
@@ -382,14 +355,9 @@ if __name__ == "__main__":
     if not os.path.isfile(os.path.join(maya_directory, "__init__.py")):
         with open(os.path.join(maya_directory, "__init__.py"), "w") as f:
             ...
+    start = time.perf_counter()
 
-    maya_commands = scrape_maya_commands(offline_docs_path=source_folder_path)
+    asyncio.run(do_it())
 
-    if cmds is not None:
-        external_commands = external_commands(maya_commands)
-    else:
-        external_commands = []
-
-    write_command_stubs(cmds_directory=cmds_directory,
-                        command_objects=maya_commands,
-                        external_commands=external_commands)
+    end = time.perf_counter()
+    print(f"Finished in {end - start:0.4f} seconds")
