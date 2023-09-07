@@ -5,12 +5,18 @@ import os
 import shutil
 import sys
 import traceback
+import external_cmds
 from typing import List, Optional, Any
 import time
 
 import bs4
 
-from type_tables import args_to_typehints, undo_query_edit_to_bools, cmd_arg_typehint_override
+from type_tables import (
+    args_to_typehints,
+    undo_query_edit_to_bools,
+    cmd_arg_typehint_override,
+    typing_and_natives_to_str,
+)
 
 # Source and Target variables control where the utility should look for the
 # offline html docs (source), and where to write the generated stubs (target)
@@ -100,7 +106,7 @@ async def parse_command(file_path: str) -> Optional[MayaCommand]:
                 maya_command.queryable,
                 maya_command.editable,
             ) = undoable_queryable_editable
-    
+
     if not undo_query_edit_section:
         raise ValueError(f"Failed to find undoable, queryable, editable block: {maya_command.function}")
 
@@ -150,7 +156,9 @@ async def parse_command(file_path: str) -> Optional[MayaCommand]:
     return maya_command
 
 
-def write_command_stubs(cmds_directory: str, command_objects: List[MayaCommand]) -> None:
+def write_command_stubs(
+    cmds_directory: str, command_objects: List[MayaCommand], external_commands: List[ExternalCommand]
+) -> None:
     """Writes the provided command objects to the target path."""
     base_categories = []
 
@@ -165,15 +173,25 @@ def write_command_stubs(cmds_directory: str, command_objects: List[MayaCommand])
     with open(os.path.join(cmds_directory, "__init__.py"), "w") as f:
         for category in base_categories:
             f.write(f"from {category} import *\n")
+        if external_commands:
+            f.write("from External import *\n")
 
     for category in base_categories:
         with open(os.path.join(cmds_directory, f"{category}.py"), "w") as f:
-            f.write("from typing import Union, Optional, List, Tuple, Any\n\n")
+            f.write("from typing import Union, Optional, List, Tuple, Any\n\n\n")
 
     for command in command_objects:
         base_category = command.categories[0]
         with open(os.path.join(cmds_directory, f"{base_category}.py"), "a") as f:
             f.write(f"{command.as_stub()}\n")
+
+    if external_commands:
+        with open(os.path.join(cmds_directory, "External.py"), "w") as f:
+            f.write("from typing import Any\n\n")
+
+        with open(os.path.join(cmds_directory, "External.py"), "a") as f:
+            for external_command in external_commands:
+                f.write(f"{external_command.as_stub()}")
 
     print("Done!")
 
@@ -191,17 +209,19 @@ class MayaCommand:
     def as_stub(self):
         fn_string = ""
         fn_string += f"def {self.function}("
-        fn_string += "*args,"
+        fn_string += "\n    *args,"
 
         for idx, argument in enumerate(self.arguments):
-            if self.function in cmd_arg_typehint_override and argument.long_name in cmd_arg_typehint_override[self.function]: 
-                typehints =cmd_arg_typehint_override[self.function][argument.long_name]
-                if isinstance(typehints, list):
-                    arg_typehint = ", ".join(typehints)
-                else:
-                    arg_typehint = typehints
+            if (
+                self.function in cmd_arg_typehint_override
+                and argument.long_name in cmd_arg_typehint_override[self.function]
+            ):
+                type_args = cmd_arg_typehint_override[self.function][argument.long_name]
             else:
-                arg_typehint = args_to_typehints(argument.type)
+                type_args = args_to_typehints(argument.type)
+
+            arg_typehint = typing_and_natives_to_str(type_args)
+
             if arg_typehint is None:
                 raise ValueError(f"Failed at {self.function} with argument format: {argument.type}")
 
@@ -212,23 +232,23 @@ class MayaCommand:
 
             # Accounts for arguments that use the same argument name for both short or long styles
             if long_args and short_args and argument.long_name == argument.short_name:
-                fn_string += f" {argument.long_name}: {arg_typehint} = ...,"
+                fn_string += f"\n    {argument.long_name}: {arg_typehint} = ...,"
             else:
                 if long_args and argument.long_name:
-                    fn_string += f" {argument.long_name}: {arg_typehint} = ...,"
+                    fn_string += f"\n    {argument.long_name}: {arg_typehint} = ...,"
 
                 if short_args and argument.short_name:
-                    fn_string += f" {argument.short_name}: {arg_typehint} = ...,"
+                    fn_string += f"\n    {argument.short_name}: {arg_typehint} = ...,"
 
         if self.editable:
-            fn_string += " edit: bool = ...,"
+            fn_string += "\n    edit: bool = ...,"
         if self.queryable:
-            fn_string += " query: bool = ...,"
+            fn_string += "\n    query: bool = ...,"
 
         if fn_string.endswith(","):
             fn_string = fn_string[:-1]
 
-        fn_string += ") -> Any:"
+        fn_string += "\n    ) -> Any:"
         fn_string += "\n"
 
         fn_string += '    r"""\n'
@@ -263,8 +283,8 @@ class MayaCommand:
 
 
 class ExternalCommand:
-    def __init__(self):
-        self.function: str = ""
+    def __init__(self, function: str):
+        self.function: str = function
 
     def as_stub(self):
         fn_string = ""
@@ -326,7 +346,9 @@ async def do_it():
     write_command_stubs(
         cmds_directory=cmds_directory,
         command_objects=maya_commands,
+        external_commands=external_cmds.external_commands()
     )
+
 
 if __name__ == "__main__":
     # Create the ./source/ and ./target/ folders if they don't already exist
