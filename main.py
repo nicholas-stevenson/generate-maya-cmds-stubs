@@ -10,7 +10,7 @@ import time
 
 import bs4
 
-from type_tables import args_to_typehints, undo_query_edit_to_bools
+from type_tables import args_to_typehints, undo_query_edit_to_bools, cmd_arg_typehint_override
 
 # Source and Target variables control where the utility should look for the
 # offline html docs (source), and where to write the generated stubs (target)
@@ -162,8 +162,6 @@ def write_command_stubs(cmds_directory: str, command_objects: List[MayaCommand])
         if base_category not in base_categories:
             base_categories.append(base_category)
 
-    print("Writing doc stubs...")
-
     with open(os.path.join(cmds_directory, "__init__.py"), "w") as f:
         for category in base_categories:
             f.write(f"from {category} import *\n")
@@ -196,7 +194,14 @@ class MayaCommand:
         fn_string += "*args,"
 
         for idx, argument in enumerate(self.arguments):
-            arg_typehint = args_to_typehints(argument.type)
+            if self.function in cmd_arg_typehint_override and argument.long_name in cmd_arg_typehint_override[self.function]: 
+                typehints =cmd_arg_typehint_override[self.function][argument.long_name]
+                if isinstance(typehints, list):
+                    arg_typehint = ", ".join(typehints)
+                else:
+                    arg_typehint = typehints
+            else:
+                arg_typehint = args_to_typehints(argument.type)
             if arg_typehint is None:
                 raise ValueError(f"Failed at {self.function} with argument format: {argument.type}")
 
