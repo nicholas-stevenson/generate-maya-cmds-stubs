@@ -187,7 +187,7 @@ def write_command_stubs(
 
     if external_commands:
         with open(os.path.join(cmds_directory, "External.py"), "w") as f:
-            f.write("from typing import Any\n\n")
+            f.write("from typing import Any\n\n\n")
 
         with open(os.path.join(cmds_directory, "External.py"), "a") as f:
             for external_command in external_commands:
@@ -248,7 +248,7 @@ class MayaCommand:
         if fn_string.endswith(","):
             fn_string = fn_string[:-1]
 
-        fn_string += "\n    ) -> Any:"
+        fn_string += "\n) -> Any:"
         fn_string += "\n"
 
         fn_string += '    r"""\n'
@@ -290,7 +290,8 @@ class ExternalCommand:
         fn_string = ""
         fn_string += f"def {self.function}("
         fn_string += "*args, **kwargs"
-        fn_string += ") -> Any: ...\n"
+        fn_string += ") -> Any:"
+        fn_string += "\n    ...\n\n"
 
         return fn_string
 
