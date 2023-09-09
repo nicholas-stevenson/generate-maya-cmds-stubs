@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import typing
-from typing import Tuple, Optional, Union, List, Any
+from typing import Tuple, Optional, Union, List, Any, Callable
 
 
 def args_to_typehints(argument) -> Optional[str]:
@@ -162,7 +162,10 @@ cmd_arg_typehint_override = {
     "curve": {
         "point": Union[List[Tuple[float, float, float]], Tuple[float, float, float]],
         "knot": Union[List[int], int],
-    }
+    },
+    "ls": {"type": Union[str, List[str]]},
+    "copySkinWeights": {"influenceAssociation": Union[List[str], str]},
+    "scriptJob": {"event": Union[Tuple[str, str], Tuple[str, Callable]]},
 }
 
 

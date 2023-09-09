@@ -228,7 +228,11 @@ class MayaCommand:
             if argument and argument.properties:
                 if argument.properties.create or argument.properties.query:
                     if arg_typehint != "bool":
-                        arg_typehint = f"Optional[Union[{arg_typehint}, bool]]"
+                        if arg_typehint.startswith("Union["):
+                            # If we already have a Union, eg Union[str, int], add our bool to the existing Union
+                            arg_typehint = "Optional[" + arg_typehint[:-1] + ", bool]]"
+                        else:
+                            arg_typehint = f"Optional[Union[{arg_typehint}, bool]]"
 
             # Accounts for arguments that use the same argument name for both short or long styles
             if long_args and short_args and argument.long_name == argument.short_name:
@@ -383,6 +387,7 @@ if __name__ == "__main__":
     if not os.path.isfile(os.path.join(maya_directory, "__init__.py")):
         with open(os.path.join(maya_directory, "__init__.py"), "w") as f:
             ...
+
     start = time.perf_counter()
 
     asyncio.run(do_it())
