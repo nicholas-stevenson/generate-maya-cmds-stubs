@@ -170,12 +170,6 @@ def write_command_stubs(
         if base_category not in base_categories:
             base_categories.append(base_category)
 
-    with open(os.path.join(cmds_directory, "__init__.py"), "w") as f:
-        for category in base_categories:
-            f.write(f"from {category} import *\n")
-        if external_commands:
-            f.write("from External import *\n")
-
     for category in base_categories:
         with open(os.path.join(cmds_directory, f"{category}.py"), "w") as f:
             f.write("from typing import Union, Optional, List, Tuple, Any\n\n\n")
@@ -192,6 +186,19 @@ def write_command_stubs(
         with open(os.path.join(cmds_directory, "External.py"), "a") as f:
             for external_command in external_commands:
                 f.write(f"{external_command.as_stub()}")
+
+    with open(os.path.join(cmds_directory, "Internal.py"), "w") as f:
+        f.write("from typing import Any\n\n\n")
+
+    with open(os.path.join(cmds_directory, "Internal.py"), "a") as f:
+        f.write("")
+
+    with open(os.path.join(cmds_directory, "__init__.py"), "w") as f:
+        for category_file in os.listdir(cmds_directory): 
+            if category_file == "__init__.py":
+                continue
+
+            f.write(f"from {os.path.splitext(category_file)[0]} import *\n")
 
     print("Done!")
 
