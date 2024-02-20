@@ -5,15 +5,60 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Module",
-            "type": "python",
+            "name": "Generate 2023 - Long",
+            "type": "debugpy",
             "request": "launch",
             "module": "main",
             "justMyCode": true,
             "env": {
-                "CMDS_STUBS_FORCE_OVERWRITE": "1"
+                "CMDS_STUBS_SOURCE_DIR": "./source/2023",
+                "CMDS_STUBS_TARGET_DIR": "./target/2023",
+                "CMDS_STUBS_LONG_ARGS": "True",
+                "CMDS_STUBS_SHORT_ARGS": "False",
+                "CMDS_STUBS_FORCE_OVERWRITE": "True"
             }
-
+        },
+        {
+            "name": "Generate 2023 - Short",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "main",
+            "justMyCode": true,
+            "env": {
+                "CMDS_STUBS_SOURCE_DIR": "./source/2023",
+                "CMDS_STUBS_TARGET_DIR": "./target/2023",
+                "CMDS_STUBS_LONG_ARGS": "False",
+                "CMDS_STUBS_SHORT_ARGS": "True",
+                "CMDS_STUBS_FORCE_OVERWRITE": "True"
+            }
+        },
+        {
+            "name": "Generate 2024 - Long",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "main",
+            "justMyCode": true,
+            "env": {
+                "CMDS_STUBS_SOURCE_DIR": "./source/2024",
+                "CMDS_STUBS_TARGET_DIR": "./target/2024",
+                "CMDS_STUBS_LONG_ARGS": "True",
+                "CMDS_STUBS_SHORT_ARGS": "False",
+                "CMDS_STUBS_FORCE_OVERWRITE": "True"
+            }
+        },
+        {
+            "name": "Generate 2024 - Short",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "main",
+            "justMyCode": true,
+            "env": {
+                "CMDS_STUBS_SOURCE_DIR": "./source/2024",
+                "CMDS_STUBS_TARGET_DIR": "./target/2024",
+                "CMDS_STUBS_LONG_ARGS": "False",
+                "CMDS_STUBS_SHORT_ARGS": "True",
+                "CMDS_STUBS_FORCE_OVERWRITE": "True"
+            }
         }
     ]
 }

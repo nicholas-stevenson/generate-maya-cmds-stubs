@@ -20,8 +20,12 @@ from type_tables import (
 
 # Source and Target variables control where the utility should look for the
 # offline html docs (source), and where to write the generated stubs (target)
-source_folder_path = os.getenv("CMDS_STUBS_SOURCE_DIR", os.path.join(os.getcwd(), "source"))
-target_folder_path = os.getenv("CMDS_STUBS_TARGET_DIR", os.path.join(os.getcwd(), "target"))
+source_folder_path = os.getenv(
+    "CMDS_STUBS_SOURCE_DIR", os.path.join(os.getcwd(), "source")
+)
+target_folder_path = os.getenv(
+    "CMDS_STUBS_TARGET_DIR", os.path.join(os.getcwd(), "target")
+)
 
 # Some users and studios prefer sticking to one type of arguments.
 # The variables below allow the generated stubs to conform to either,
@@ -86,7 +90,9 @@ async def parse_command(file_path: str) -> Optional[MayaCommand]:
     categories_hrefs = categories_block.find_all("a", href=True)
     maya_command.categories = [href.text for href in categories_hrefs]
 
-    maya_command.function = soup.body.find(id="synopsis").find("code").text.split("(")[0]
+    maya_command.function = (
+        soup.body.find(id="synopsis").find("code").text.split("(")[0]
+    )
 
     # Find the text section pertaining to the allowed command flags,
     # found just after the main function and arguments block.
@@ -100,7 +106,9 @@ async def parse_command(file_path: str) -> Optional[MayaCommand]:
             undo_query_edit_section = idx
             undoable_queryable_editable = undo_query_edit_to_bools(section.text)
             if undoable_queryable_editable is None:
-                raise ValueError(f"Failed to parse undoable, queryable, editable block: {section.text}")
+                raise ValueError(
+                    f"Failed to parse undoable, queryable, editable block: {section.text}"
+                )
             (
                 maya_command.undoable,
                 maya_command.queryable,
@@ -108,7 +116,9 @@ async def parse_command(file_path: str) -> Optional[MayaCommand]:
             ) = undoable_queryable_editable
 
     if not undo_query_edit_section:
-        raise ValueError(f"Failed to find undoable, queryable, editable block: {maya_command.function}")
+        raise ValueError(
+            f"Failed to find undoable, queryable, editable block: {maya_command.function}"
+        )
 
     for idx, section in enumerate(soup.body.contents[undo_query_edit_section + 1 :]):
         if "Return value" in section.text:
@@ -141,7 +151,9 @@ async def parse_command(file_path: str) -> Optional[MayaCommand]:
             names_section, type_section = header.find_all("code")
             long_name, short_name = names_section.find_all("b")
             properties_section = header.find_all("img")
-            argument.properties = Properties([p.get("title") for p in properties_section])
+            argument.properties = Properties(
+                [p.get("title") for p in properties_section]
+            )
 
             argument.long_name = long_name.text
             argument.short_name = short_name.text
@@ -157,7 +169,9 @@ async def parse_command(file_path: str) -> Optional[MayaCommand]:
 
 
 def write_command_stubs(
-    cmds_directory: str, command_objects: List[MayaCommand], external_commands: List[ExternalCommand]
+    cmds_directory: str,
+    command_objects: List[MayaCommand],
+    external_commands: List[ExternalCommand],
 ) -> None:
     """Writes the provided command objects to the target path."""
     base_categories = []
@@ -172,7 +186,9 @@ def write_command_stubs(
 
     for category in base_categories:
         with open(os.path.join(cmds_directory, f"{category}.py"), "w") as f:
-            f.write("from typing import Union, Optional, List, Tuple, Any\n\n\n")
+            f.write(
+                "from typing import Union, Optional, List, Tuple, Set, Literal, Any\n\n\n"
+            )
 
     for command in command_objects:
         base_category = command.categories[0]
@@ -194,7 +210,7 @@ def write_command_stubs(
         f.write("")
 
     with open(os.path.join(cmds_directory, "__init__.py"), "w") as f:
-        for category_file in os.listdir(cmds_directory): 
+        for category_file in os.listdir(cmds_directory):
             if category_file == "__init__.py":
                 continue
 
@@ -230,7 +246,9 @@ class MayaCommand:
             arg_typehint = typing_and_natives_to_str(type_args)
 
             if arg_typehint is None:
-                raise ValueError(f"Failed at {self.function} with argument format: {argument.type}")
+                raise ValueError(
+                    f"Failed at {self.function} with argument format: {argument.type}"
+                )
 
             if argument and argument.properties:
                 if argument.properties.create or argument.properties.query:
@@ -346,10 +364,15 @@ class Properties:
 
 
 async def do_it():
-    command_docs = [f for f in os.listdir(source_folder_path) if os.path.splitext(f)[1] == ".html"]
+    command_docs = [
+        f for f in os.listdir(source_folder_path) if os.path.splitext(f)[1] == ".html"
+    ]
     print("Parsing docs...")
 
-    tasks = [asyncio.create_task(parse_command(os.path.join(source_folder_path, cmd))) for cmd in command_docs]
+    tasks = [
+        asyncio.create_task(parse_command(os.path.join(source_folder_path, cmd)))
+        for cmd in command_docs
+    ]
     maya_commands = await asyncio.gather(*tasks)
     maya_commands = [i for i in maya_commands if i is not None]
 
@@ -358,7 +381,7 @@ async def do_it():
     write_command_stubs(
         cmds_directory=cmds_directory,
         command_objects=maya_commands,
-        external_commands=external_cmds.external_commands()
+        external_commands=external_cmds.external_commands(),
     )
 
 
@@ -369,10 +392,14 @@ if __name__ == "__main__":
             os.makedirs(asset_path)
 
     if not any([short_args, long_args]):
-        raise RuntimeError("Must specify at least one type of argument style, short or long.  Aborting.")
+        raise RuntimeError(
+            "Must specify at least one type of argument style, short or long.  Aborting."
+        )
 
     if not os.path.exists(target_folder_path):
-        raise IOError(f"Target file path does not exits, aborting.\nTarget Path: {target_folder_path}")
+        raise IOError(
+            f"Target file path does not exits, aborting.\nTarget Path: {target_folder_path}"
+        )
 
     # The cmds module must be inside a folder named /maya/, to match Maya's own
     # module structure for the cmds module.  Eg: import maya.cmds is ./maya/cmds/

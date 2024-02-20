@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import typing
-from typing import Tuple, Optional, Union, List, Any, Callable
+from typing import Tuple, Optional, Union, List, Any, Callable, Literal, Set
 
 
 def args_to_typehints(argument) -> Optional[str]:
@@ -45,7 +44,9 @@ def args_to_typehints(argument) -> Optional[str]:
         "[string, string, string]": Tuple[str, str, str],
         "[string, string, string, string]": Tuple[str, str, str, str],
         "[string, string, string, string, string]": Tuple[str, str, str, str, str],
-        "[string, string, string, string, string, string]": Tuple[str, str, str, str, str, str],
+        "[string, string, string, string, string, string]": Tuple[
+            str, str, str, str, str, str
+        ],
         "[int, string, int]": Tuple[int, str, int],
         "[int, int]": Tuple[int, int],
         "[int, int, int]": Tuple[int, int, int],
@@ -103,7 +104,9 @@ def args_to_typehints(argument) -> Optional[str]:
         "[string, int, int, int, int]": Tuple[str, int, int, int, int],
         "[boolean, string, string, string, string]": Tuple[bool, str, str, str, str],
         "[int, boolean]": Tuple[int, bool],
-        "[int, boolean, string, string, string, string]": Tuple[int, bool, str, str, str, str],
+        "[int, boolean, string, string, string, string]": Tuple[
+            int, bool, str, str, str, str
+        ],
         "[[, float, float, float, ]]": List[Union[float, List[float]]],
         "int64": int,
         "[linear, linear]": Tuple[float, float],
@@ -112,7 +115,9 @@ def args_to_typehints(argument) -> Optional[str]:
         "[string, uint, uint, uint, uint]": Tuple[str, int, int, int, int],
         "[string, uint, boolean]": Tuple[str, int, bool],
         "[string, string, uint]": Tuple[str, str, int],
-        "[boolean, boolean, boolean, boolean, boolean]": Tuple[bool, bool, bool, bool, bool],
+        "[boolean, boolean, boolean, boolean, boolean]": Tuple[
+            bool, bool, bool, bool, bool
+        ],
         "[boolean, boolean, boolean, boolean, boolean, boolean, boolean]": Tuple[
             bool, bool, bool, bool, bool, bool, bool
         ],
@@ -127,7 +132,9 @@ def args_to_typehints(argument) -> Optional[str]:
         "[int, script]": Tuple[int, str],
         "[uint, linear]": Tuple[int, float],
         "[uint, string]": Tuple[int, str],
-        "[linear, linear, linear, linear, linear]": Tuple[float, float, float, float, float],
+        "[linear, linear, linear, linear, linear]": Tuple[
+            float, float, float, float, float
+        ],
         "[float, float, float, float, float, float, float, float, float, float, float, float, float, float, float, float]": Tuple[
             float,
             float,
@@ -166,6 +173,19 @@ cmd_arg_typehint_override = {
     "ls": {"type": Union[str, List[str]]},
     "copySkinWeights": {"influenceAssociation": Union[List[str], str]},
     "scriptJob": {"event": Union[Tuple[str, str], Tuple[str, Callable]]},
+    "parentConstraint": {
+        "skipTranslate": Set[Literal["x", "y", "z"]],
+        "skipRotate": Set[Literal["x", "y", "z"]],
+    },
+    "pointConstraint": {
+        "skip": Set[Literal["x", "y", "z"]],
+    },
+    "orientConstraint": {
+        "skip": Set[Literal["x", "y", "z"]],
+    },
+    "scaleConstraint": {
+        "skip": Set[Literal["x", "y", "z"]],
+    },
 }
 
 
@@ -192,7 +212,7 @@ def undo_query_edit_to_bools(syntax: str) -> Optional[Tuple[bool, bool, bool]]:
 
 
 def typing_and_natives_to_str(typehint: Any):
-    """This function will take a python tuping typehint declaration and convert it
+    """This function will take a python typing typehint declaration and convert it
     to a string that can be used in a docstring."""
     if str(typehint).startswith("typing."):
         return str(typehint).replace("typing.", "")
