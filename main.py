@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import os
 import shutil
-import sys
 import traceback
 import external_cmds
 from typing import List, Optional, Any
@@ -187,7 +186,7 @@ def write_command_stubs(
     for category in base_categories:
         with open(os.path.join(cmds_directory, f"{category}.py"), "w") as f:
             f.write(
-                "from typing import Union, Optional, List, Tuple, Set, Literal, Any\n\n\n"
+                "from typing import Any, Callable, Literal\n\n\n"
             )
 
     for command in command_objects:
@@ -210,10 +209,9 @@ def write_command_stubs(
         f.write("")
 
     with open(os.path.join(cmds_directory, "__init__.py"), "w") as f:
-        for category_file in os.listdir(cmds_directory):
-            if category_file == "__init__.py":
+        for category_file in sorted(os.listdir(cmds_directory)):
+            if not category_file.endswith(".py") or category_file == "__init__.py":
                 continue
-
             f.write(f"from {os.path.splitext(category_file)[0]} import *\n")
 
     print("Done!")
@@ -253,11 +251,7 @@ class MayaCommand:
             if argument and argument.properties:
                 if argument.properties.create or argument.properties.query:
                     if arg_typehint != "bool":
-                        if arg_typehint.startswith("Union["):
-                            # If we already have a Union, eg Union[str, int], add our bool to the existing Union
-                            arg_typehint = "Optional[" + arg_typehint[:-1] + ", bool]]"
-                        else:
-                            arg_typehint = f"Optional[Union[{arg_typehint}, bool]]"
+                        arg_typehint = f"{arg_typehint} | bool | None"
 
             # Accounts for arguments that use the same argument name for both short or long styles
             if long_args and short_args and argument.long_name == argument.short_name:
