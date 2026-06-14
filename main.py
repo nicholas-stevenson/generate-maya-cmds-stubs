@@ -167,6 +167,13 @@ async def parse_command(file_path: str) -> Optional[MayaCommand]:
                 argument_types.append(argument.type)
             maya_command.arguments.append(argument)
 
+    for h2 in soup.find_all("h2"):
+        if "example" in h2.text.lower():
+            pre = h2.find_next_sibling("pre")
+            if pre:
+                maya_command.examples = pre.text.strip()
+            break
+
     return maya_command
 
 
@@ -234,6 +241,7 @@ class MayaCommand:
         self.undoable: bool = False
         self.queryable: bool = False
         self.editable: bool = False
+        self.examples: str = ""
 
     def as_stub(self):
         fn_string = ""
@@ -291,12 +299,9 @@ class MayaCommand:
         fn_string += '    r"""\n'
 
         desc = self.description.strip().splitlines(keepends=True)
-
         fn_string += "    {d}\n".format(d="    ".join(desc))
 
-        fn_string += "\n"
-
-        fn_string += "    Args:\n"
+        fn_string += "\n    Args:\n"
 
         for argument in self.arguments:
             argument_name = ""
@@ -312,6 +317,11 @@ class MayaCommand:
             description = argument.description.splitlines()
             description = " ".join(description)
             fn_string += f"        {argument_name}: ({str(argument.properties)}) - {description}\n"
+
+        if self.examples:
+            fn_string += "\n    Example:\n"
+            for line in self.examples.splitlines():
+                fn_string += f"        {line}\n"
 
         fn_string += '    """\n'
         fn_string += "    ...\n\n"
