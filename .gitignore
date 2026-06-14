@@ -134,3 +134,6 @@ dmypy.json
 
 # Ignore the generated files for github releases
 /release
+
+# Mypy generated code stubs
+/out

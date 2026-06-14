@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import keyword
 import os
 import shutil
 import traceback
@@ -30,7 +31,7 @@ target_folder_path = os.getenv(
 # The variables below allow the generated stubs to conform to either,
 # or even both short and long at the same time.
 long_args = os.getenv("CMDS_STUBS_LONG_ARGS", "true").lower() in ["true", "1"]
-short_args = os.getenv("CMDS_STUBS_SHORT_ARGS", "true").lower() in ["true", "1"]
+short_args = os.getenv("CMDS_STUBS_SHORT_ARGS", "false").lower() in ["true", "1"]
 
 # When generating the stubs, the results will be written to a folder titled
 # cmds, after the main maya python cmds module.  The utility will check if
@@ -92,7 +93,9 @@ async def parse_command(file_path: str) -> Optional[MayaCommand]:
     synopsis_text = soup.body.find(id="synopsis").find("code").text
     # Offline docs: "spaceLocator(...)"  →  split on "("
     # Online docs:  "spaceLocator [-absolute] ..."  →  split on " " or "["
-    maya_command.function = synopsis_text.split("(")[0].split("[")[0].strip()
+    # Some pages include a return type after the name: "objExists string(...)" or
+    # "abs int|float|vector(...)" — take only the first whitespace-delimited token.
+    maya_command.function = synopsis_text.split("(")[0].split("[")[0].split()[0]
 
     # Find the text section pertaining to the allowed command flags,
     # found just after the main function and arguments block.
@@ -212,9 +215,14 @@ def write_command_stubs(
         for category_file in sorted(os.listdir(cmds_directory)):
             if not category_file.endswith(".py") or category_file == "__init__.py":
                 continue
-            f.write(f"from {os.path.splitext(category_file)[0]} import *\n")
+            f.write(f"from maya.cmds.{os.path.splitext(category_file)[0]} import *\n")
 
     print("Done!")
+
+
+def _safe_arg_name(name: str) -> str:
+    """Appends '_' to names that clash with Python reserved keywords (PEP 8 convention)."""
+    return name + "_" if keyword.iskeyword(name) else name
 
 
 class MayaCommand:
@@ -255,13 +263,19 @@ class MayaCommand:
 
             # Accounts for arguments that use the same argument name for both short or long styles
             if long_args and short_args and argument.long_name == argument.short_name:
-                fn_string += f"\n    {argument.long_name}: {arg_typehint} = ...,"
+                safe_name = _safe_arg_name(argument.long_name)
+                comment = f"  # Maya flag: '{argument.long_name}'" if safe_name != argument.long_name else ""
+                fn_string += f"\n    {safe_name}: {arg_typehint} = ...," + comment
             else:
                 if long_args and argument.long_name:
-                    fn_string += f"\n    {argument.long_name}: {arg_typehint} = ...,"
+                    safe_name = _safe_arg_name(argument.long_name)
+                    comment = f"  # Maya flag: '{argument.long_name}'" if safe_name != argument.long_name else ""
+                    fn_string += f"\n    {safe_name}: {arg_typehint} = ...," + comment
 
                 if short_args and argument.short_name:
-                    fn_string += f"\n    {argument.short_name}: {arg_typehint} = ...,"
+                    safe_name = _safe_arg_name(argument.short_name)
+                    comment = f"  # Maya flag: '{argument.short_name}'" if safe_name != argument.short_name else ""
+                    fn_string += f"\n    {safe_name}: {arg_typehint} = ...," + comment
 
         if self.editable:
             fn_string += "\n    edit: bool = ...,"
