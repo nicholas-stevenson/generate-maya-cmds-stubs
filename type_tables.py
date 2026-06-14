@@ -3,6 +3,17 @@ from __future__ import annotations
 from typing import Tuple, Optional, Union, List, Any, Callable, Literal, Set
 
 
+def _normalize_type_string(argument: str) -> str:
+    """The online docs represent multi-value types as space-separated tokens
+    (e.g. "float float float"), while the offline docs used bracket notation
+    (e.g. "[float, float, float]").  Normalise to bracket form so the lookup
+    table works regardless of source."""
+    tokens = argument.split()
+    if len(tokens) > 1:
+        return "[" + ", ".join(tokens) + "]"
+    return argument
+
+
 def args_to_typehints(argument) -> Optional[str]:
     """This function holds all unique argument occurrences found throughout
     the autodesk documentation.  If any new styles are found in the future,
@@ -22,6 +33,7 @@ def args_to_typehints(argument) -> Optional[str]:
         Type-hint : Tuple[float, float, float]
         Python    : (float, float, float)
     """
+    argument = _normalize_type_string(argument)
     lookup_table = {
         "boolean": bool,
         "string": str,
@@ -155,7 +167,12 @@ def args_to_typehints(argument) -> Optional[str]:
         ],
         "[name, boolean]": Tuple[str, bool],
         "[name, int]": Tuple[str, int],
+        "[float, float, float, float, int]": Tuple[float, float, float, float, int],
+        "[string, string, int, boolean]": Tuple[str, str, int, bool],
     }
+
+    if not argument:
+        return Any
 
     return lookup_table.get(argument)
 
@@ -211,10 +228,39 @@ def undo_query_edit_to_bools(syntax: str) -> Optional[Tuple[bool, bool, bool]]:
     return lookup_table.get(syntax)
 
 
-def typing_and_natives_to_str(typehint: Any):
-    """This function will take a python typing typehint declaration and convert it
-    to a string that can be used in a docstring."""
-    if str(typehint).startswith("typing."):
-        return str(typehint).replace("typing.", "")
-    else:
+def typing_and_natives_to_str(typehint: Any) -> str:
+    """Converts a typing object to a PEP 604 / Python 3.10+ style string.
+
+    Examples:
+        bool                          -> "bool"
+        Optional[str]                 -> "str | None"
+        Union[str, int]               -> "str | int"
+        Tuple[float, float, float]    -> "tuple[float, float, float]"
+        List[str]                     -> "list[str]"
+        Set[Literal["x"]]             -> "set[Literal['x']]"
+    """
+    import typing
+
+    if typehint is Any:
+        return "Any"
+    if typehint is type(None):
+        return "None"
+
+    origin = typing.get_origin(typehint)
+    args = typing.get_args(typehint)
+
+    if origin is Union:
+        return " | ".join(typing_and_natives_to_str(a) for a in args)
+    if origin is tuple:
+        return "tuple[" + ", ".join(typing_and_natives_to_str(a) for a in args) + "]"
+    if origin is list:
+        return "list[" + typing_and_natives_to_str(args[0]) + "]"
+    if origin is set:
+        return "set[" + typing_and_natives_to_str(args[0]) + "]"
+    if typing.get_origin(typehint) is Literal or str(origin) in ("typing.Literal",):
+        return "Literal[" + ", ".join(repr(a) for a in args) + "]"
+    if hasattr(typehint, "__name__"):
         return typehint.__name__
+
+    # Fallback for Callable and any other edge cases
+    return str(typehint).replace("typing.", "")

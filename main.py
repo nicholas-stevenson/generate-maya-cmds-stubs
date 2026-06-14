@@ -90,9 +90,10 @@ async def parse_command(file_path: str) -> Optional[MayaCommand]:
     categories_hrefs = categories_block.find_all("a", href=True)
     maya_command.categories = [href.text for href in categories_hrefs]
 
-    maya_command.function = (
-        soup.body.find(id="synopsis").find("code").text.split("(")[0]
-    )
+    synopsis_text = soup.body.find(id="synopsis").find("code").text
+    # Offline docs: "spaceLocator(...)"  →  split on "("
+    # Online docs:  "spaceLocator [-absolute] ..."  →  split on " " or "["
+    maya_command.function = synopsis_text.split("(")[0].split("[")[0].strip()
 
     # Find the text section pertaining to the allowed command flags,
     # found just after the main function and arguments block.
@@ -116,9 +117,8 @@ async def parse_command(file_path: str) -> Optional[MayaCommand]:
             ) = undoable_queryable_editable
 
     if not undo_query_edit_section:
-        raise ValueError(
-            f"Failed to find undoable, queryable, editable block: {maya_command.function}"
-        )
+        # MEL-only commands have a different page structure with no undoable/queryable/editable block.
+        return None
 
     for idx, section in enumerate(soup.body.contents[undo_query_edit_section + 1 :]):
         if "Return value" in section.text:
@@ -155,8 +155,8 @@ async def parse_command(file_path: str) -> Optional[MayaCommand]:
                 [p.get("title") for p in properties_section]
             )
 
-            argument.long_name = long_name.text
-            argument.short_name = short_name.text
+            argument.long_name = long_name.text.lstrip("-")
+            argument.short_name = short_name.text.lstrip("-")
 
             argument.type = type_section.text.strip()
             argument.description = command.text.strip()

@@ -84,44 +84,48 @@ The details below explain how you can run this tool yourself.  The instructions 
 ## Dependencies
 - Python 3.9
 - [beautifulSoup4](https://pypi.org/project/beautifulsoup4/)
-- Offline Maya API Docs
+- [httpx](https://www.python-httpx.org/)
 
 ### Installing the Dependencies
-This utility can be run from a standard copy of Python 3, or via the Mayapy interpreter. Pip installing modules in to python is a very documented and typical thing to do.  Follow the instructions for beautifulSoup4 to add the necessary module to your Python environment. 
+```
+pip install beautifulsoup4 httpx
+```
 
-Using mayapy.exe to generate the code stubs activates additional behavior as there are a number of plugin-registered commands that are in view of the maya.cmds module, but do not have dedicated .html documentation.  When using mayapy.exe for the generation, these _external_ commands will have stubs generated but will be bare functions without any arguments, flags, or docstrings included. 
+This utility can be run from a standard copy of Python 3, or via the Mayapy interpreter.
 
-### Downloading the necessary Maya Documentation
-- https://knowledge.autodesk.com/support/maya/downloads/caas/downloads/content/download-install-maya-product-help.html
-- ![download_docs_image](https://user-images.githubusercontent.com/1255630/218574988-3e6f9019-6e2e-435b-9505-987f304dee5f.png)
-- If the url changes, simply search for "Maya Documentation" and one of the top results should be the website for downloading offline documentation
+Using mayapy.exe to generate the code stubs activates additional behavior as there are a number of plugin-registered commands that are in view of the maya.cmds module, but do not have dedicated .html documentation.  When using mayapy.exe for the generation, these _external_ commands will have stubs generated but will be bare functions without any arguments, flags, or docstrings included.
 
 ## Usage
-### Behavior Variables
-At the top of tie _main.py_ script is block of logic which reads in a number of environment variables which change certain behaviors of this script.  Each variable and its use are descried below.  These variables are intended as a convenient way to tweak various elements of how this script works, and the results that it provides.
 
-There are a number of ways by which you can set these environment variables.  I'll describe the simplest forms below but configuring a tool environment is beyond on the intent of this writeup.  But perhaps this will help.
-- Via the command line, prior to running the script.
-  - Eg: `set VARIABLE=1`
-- By adding a section at the top of the _main.py_ file directly, and setting the variables with pure Python
-  - `os.environ["VARIABLE"] = 1`
+### Step 1 — Fetch and cache the documentation (internet required once)
+
+```
+python fetch_docs.py
+```
+
+This downloads all ~1500 Maya command pages from the Autodesk online docs into the `./source/` folder.  Pages that are already present are skipped, so re-running is safe and fast.  Once cached, stub generation works entirely offline.
+
+To update the cache for a new Maya release, delete the `./source/` folder and re-run `fetch_docs.py`.
+
+### Step 2 — Generate the stubs
+
+```
+python main.py
+```
+
+The results are written to `./target/maya/cmds/`.
+
+### Behavior Variables
+At the top of each script is a block of logic that reads environment variables to control behavior.  These can be set on the command line (`set VARIABLE=1` on Windows, `export VARIABLE=1` on Mac/Linux) or injected directly in the script via `os.environ`.
 
 #### Variable List
-| Variable              | Type    | Default     | Description                                                                                             |
-|-----------------------|---------|-------------|---------------------------------------------------------------------------------------------------------|
-|CMDS_STUBS_SOURCE_DIR| String  | `./source/` | File path to the directory holding the offline .html code docs.                                         |
-|CMDS_STUBS_TARGET_DIR| Boolean | `./target/` | File path to the directory holding the offline .html code docs.                                         |
-|CMDS_STUBS_LONG_ARGS| Boolean | True        | Specifies if the code stubs should contain the long-name arguments.  Eg: `maya.cmds.ls(selection=True)` |
-|CMDS_STUBS_SHORT_ARGS| Boolean | True        | Specifies if the code stubs should contain the long-name arguments.  Eg: `maya.cmds.ls(sl=True)`        |
-|CMDS_STUBS_FORCE_OVERWRITE| Boolean | False       | Overwrite the `./target/cmds/` directory contents, if this folder already exists.                       |
-
-### Runing the Script
-- Inside the offline documentation download (see the link above), unzip the contents of the folder _/CommandsPython/_ to a folder titled _/source/_.
-  - Eg: `E:\my_git_clone\source`
-- Set any environment variables you wish
-- Run the script using the command below
-  - `C:\python3\python.exe E:\generate-maya-cmds-stubs\main.py`
-- The results will be placed into the directory specified by the CMDS_STUBS_TARGET_DIR, or by default, `.\target\cmds`
+| Variable                   | Type    | Default     | Description                                                                                              |
+|----------------------------|---------|-------------|----------------------------------------------------------------------------------------------------------|
+| `CMDS_STUBS_SOURCE_DIR`    | String  | `./source/` | Directory where cached .html doc pages are stored (written by `fetch_docs.py`, read by `main.py`).      |
+| `CMDS_STUBS_TARGET_DIR`    | String  | `./target/` | Directory where generated stub files are written.                                                        |
+| `CMDS_STUBS_LONG_ARGS`     | Boolean | `true`      | Include long-name arguments in stubs. Eg: `maya.cmds.ls(selection=True)`                                |
+| `CMDS_STUBS_SHORT_ARGS`    | Boolean | `true`      | Include short-name arguments in stubs. Eg: `maya.cmds.ls(sl=True)`                                      |
+| `CMDS_STUBS_FORCE_OVERWRITE` | Boolean | `false`   | Automatically clear the target `cmds/` directory if it already exists.                                  |
 
 ### To-Do
 This is the initial release of this module, and there is much house-keeping that should be done.  However, it is generating functional cmds-stubs, and while some of my planned refactoring should speed up performance, I don't anticipate the end-results changing much.

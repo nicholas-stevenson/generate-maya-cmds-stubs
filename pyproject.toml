@@ -1,2 +1,10 @@
 [tool.black]
 line-length = 120
+
+[project]
+name = "generate-maya-cmds-stubs"
+requires-python = ">=3.9"
+dependencies = [
+    "beautifulsoup4",
+    "httpx",
+]
