@@ -227,9 +227,10 @@ def write_command_stubs(
     print("Done!")
 
 
-def _safe_arg_name(name: str) -> str:
-    """Appends '_' to names that clash with Python reserved keywords (PEP 8 convention)."""
-    return name + "_" if keyword.iskeyword(name) else name
+# Python keywords that cannot legally appear as parameter names (SyntaxError).
+# When a Maya flag's long name is in this set, the short name is used instead,
+# matching Maya's own Python binding behaviour (e.g. `import` → `i` or `im`).
+_PYTHON_RESERVED = frozenset(keyword.kwlist)
 
 
 class MayaCommand:
@@ -269,21 +270,22 @@ class MayaCommand:
                     if arg_typehint != "bool":
                         arg_typehint = f"{arg_typehint} | bool | None"
 
-            # Accounts for arguments that use the same argument name for both short or long styles
-            if long_args and short_args and argument.long_name == argument.short_name:
-                safe_name = _safe_arg_name(argument.long_name)
-                comment = f"  # Maya flag: '{argument.long_name}'" if safe_name != argument.long_name else ""
-                fn_string += f"\n    {safe_name}: {arg_typehint} = ...," + comment
-            else:
-                if long_args and argument.long_name:
-                    safe_name = _safe_arg_name(argument.long_name)
-                    comment = f"  # Maya flag: '{argument.long_name}'" if safe_name != argument.long_name else ""
-                    fn_string += f"\n    {safe_name}: {arg_typehint} = ...," + comment
+            long_name = argument.long_name
+            short_name = argument.short_name
+            long_reserved = long_name in _PYTHON_RESERVED
 
-                if short_args and argument.short_name:
-                    safe_name = _safe_arg_name(argument.short_name)
-                    comment = f"  # Maya flag: '{argument.short_name}'" if safe_name != argument.short_name else ""
-                    fn_string += f"\n    {safe_name}: {arg_typehint} = ...," + comment
+            # Accounts for arguments that use the same argument name for both short or long styles
+            if long_args and short_args and long_name == short_name:
+                fn_string += f"\n    {long_name}: {arg_typehint} = ...,"
+            else:
+                # Emit long name unless it clashes with a Python keyword or builtin,
+                # in which case Maya's own Python binding falls back to the short name.
+                if long_args and long_name and not long_reserved:
+                    fn_string += f"\n    {long_name}: {arg_typehint} = ...,"
+
+                # Emit short name when: short_args is on, or long was reserved (fallback).
+                if (short_args or (long_args and long_reserved)) and short_name:
+                    fn_string += f"\n    {short_name}: {arg_typehint} = ...,"
 
         if self.editable:
             fn_string += "\n    edit: bool = ...,"
