@@ -2,15 +2,13 @@ from __future__ import annotations
 
 import asyncio
 import os
-import sys
 import time
 from typing import List
 
 import bs4
 import httpx
 
-# Base URL for the Maya Commands online documentation
-DOCS_BASE_URL = "https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Tech-Docs/Commands"
+DOCS_BASE_URL = "https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Tech-Docs/CommandsPython"
 INDEX_URL = f"{DOCS_BASE_URL}/index_all.html"
 
 # Max simultaneous in-flight requests. Autodesk's CDN handles this fine at 20;

@@ -3,17 +3,6 @@ from __future__ import annotations
 from typing import Tuple, Optional, Union, List, Any, Callable, Literal, Set
 
 
-def _normalize_type_string(argument: str) -> str:
-    """The online docs represent multi-value types as space-separated tokens
-    (e.g. "float float float"), while the offline docs used bracket notation
-    (e.g. "[float, float, float]").  Normalise to bracket form so the lookup
-    table works regardless of source."""
-    tokens = argument.split()
-    if len(tokens) > 1:
-        return "[" + ", ".join(tokens) + "]"
-    return argument
-
-
 def args_to_typehints(argument) -> Optional[str]:
     """This function holds all unique argument occurrences found throughout
     the autodesk documentation.  If any new styles are found in the future,
@@ -33,7 +22,6 @@ def args_to_typehints(argument) -> Optional[str]:
         Type-hint : Tuple[float, float, float]
         Python    : (float, float, float)
     """
-    argument = _normalize_type_string(argument)
     lookup_table = {
         "boolean": bool,
         "string": str,
